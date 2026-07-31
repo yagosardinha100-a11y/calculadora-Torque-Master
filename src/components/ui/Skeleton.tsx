@@ -1,6 +1,5 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-import { useTheme } from '../../context/ThemeContext';
 
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   key?: React.Key;
@@ -19,7 +18,13 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
   );
 }
 
-export function LoadingSpinner({ className, size = 'md' }: { className?: string; size?: 'sm' | 'md' | 'lg' }) {
+export function LoadingSpinner({
+  className,
+  size = 'md',
+}: {
+  className?: string;
+  size?: 'sm' | 'md' | 'lg';
+}) {
   const sizeClasses = {
     sm: 'w-4 h-4 border-2',
     md: 'w-6 h-6 border-2',
@@ -41,36 +46,29 @@ export function LoadingSpinner({ className, size = 'md' }: { className?: string;
   );
 }
 
-export function ScheduleSkeleton() {
-  const { isLight } = useTheme();
+const panel =
+  'rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-sm';
 
+export function ScheduleSkeleton() {
   return (
-    <div className="p-2 sm:p-4 min-h-full flex flex-col max-w-[1700px] mx-auto gap-3 animate-fade-in">
-      {/* Operations Command Banner Skeleton */}
-      <div className={cn(
-        "rounded-xl p-3 sm:p-4 border shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
+    <div className="mx-auto flex min-h-full max-w-[1700px] flex-col gap-3 p-2 animate-fade-in sm:p-4">
+      <div className={cn(panel, 'flex flex-col items-stretch justify-between gap-3 p-3 sm:p-4 lg:flex-row lg:items-center')}>
         <div className="flex items-center gap-3">
-          <Skeleton className="w-11 h-11 rounded-xl shrink-0" />
+          <Skeleton className="h-11 w-11 shrink-0 rounded-xl" />
           <div className="space-y-2">
             <Skeleton className="h-6 w-48 sm:w-64" />
             <Skeleton className="h-4 w-32 sm:w-44" />
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <Skeleton className="h-9 w-28 rounded-lg" />
           <Skeleton className="h-9 w-28 rounded-lg" />
           <Skeleton className="h-9 w-20 rounded-lg" />
         </div>
       </div>
 
-      {/* Grid Controls Skeleton */}
-      <div className={cn(
-        "rounded-xl p-3 border shadow-xs flex flex-col sm:flex-row justify-between gap-3",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
-        <Skeleton className="h-9 w-full sm:w-72 rounded-lg" />
+      <div className={cn(panel, 'flex flex-col justify-between gap-3 p-3 sm:flex-row')}>
+        <Skeleton className="h-9 w-full rounded-lg sm:w-72" />
         <div className="flex items-center gap-2">
           <Skeleton className="h-9 w-24 rounded-lg" />
           <Skeleton className="h-9 w-24 rounded-lg" />
@@ -78,32 +76,29 @@ export function ScheduleSkeleton() {
         </div>
       </div>
 
-      {/* Schedule Grid Matrix Skeleton */}
-      <div className={cn(
-        "rounded-xl border shadow-sm overflow-hidden flex-1 p-3 space-y-3",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
-        {/* Table Header Row Skeleton */}
-        <div className="flex items-center gap-2 border-b pb-3 border-slate-200 dark:border-slate-800">
+      <div className={cn(panel, 'flex-1 space-y-3 overflow-hidden p-3')}>
+        <div className="flex items-center gap-2 border-b border-[var(--app-border)] pb-3">
           <Skeleton className="h-6 w-48 shrink-0" />
-          <div className="flex items-center gap-1.5 flex-1 overflow-hidden">
+          <div className="flex flex-1 items-center gap-1.5 overflow-hidden">
             {Array.from({ length: 14 }).map((_, i) => (
               <Skeleton key={i} className="h-8 flex-1 rounded" />
             ))}
           </div>
         </div>
 
-        {/* Collaborator Rows Skeleton */}
         {Array.from({ length: 8 }).map((_, rowIndex) => (
-          <div key={rowIndex} className="flex items-center gap-2 py-1.5 border-b border-slate-100 dark:border-slate-800/50">
-            <div className="w-48 shrink-0 flex items-center gap-2">
-              <Skeleton className="w-8 h-8 rounded-full shrink-0" />
-              <div className="space-y-1 flex-1 min-w-0">
+          <div
+            key={rowIndex}
+            className="flex items-center gap-2 border-b border-[var(--app-border)]/60 py-1.5"
+          >
+            <div className="flex w-48 shrink-0 items-center gap-2">
+              <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-1">
                 <Skeleton className="h-4 w-28" />
                 <Skeleton className="h-3 w-16" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5 flex-1 overflow-hidden">
+            <div className="flex flex-1 items-center gap-1.5 overflow-hidden">
               {Array.from({ length: 14 }).map((_, colIndex) => (
                 <Skeleton key={colIndex} className="h-9 flex-1 rounded-md" />
               ))}
@@ -116,51 +111,34 @@ export function ScheduleSkeleton() {
 }
 
 export function VacationSkeleton() {
-  const { isLight } = useTheme();
-
   return (
-    <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
-      {/* Header Banner Skeleton */}
-      <div className={cn(
-        "rounded-2xl p-6 border shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
+    <div className="mx-auto max-w-7xl space-y-6 p-3 animate-fade-in sm:p-6">
+      <div className={cn(panel, 'flex flex-col items-start justify-between gap-4 rounded-2xl p-6 sm:flex-row sm:items-center')}>
         <div className="flex items-center gap-3">
-          <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
+          <Skeleton className="h-12 w-12 shrink-0 rounded-2xl" />
           <div className="space-y-2">
             <Skeleton className="h-7 w-60" />
             <Skeleton className="h-4 w-40" />
           </div>
         </div>
-        <Skeleton className="h-11 w-48 rounded-xl shrink-0" />
+        <Skeleton className="h-11 w-48 shrink-0 rounded-xl" />
       </div>
 
-      {/* Filters & Search Skeleton */}
-      <div className={cn(
-        "p-4 rounded-xl border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
-        <Skeleton className="h-10 w-full sm:w-80 rounded-lg" />
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+      <div className={cn(panel, 'flex flex-col items-center justify-between gap-3 p-4 sm:flex-row')}>
+        <Skeleton className="h-10 w-full rounded-lg sm:w-80" />
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <Skeleton className="h-9 w-24 rounded-lg" />
           <Skeleton className="h-9 w-24 rounded-lg" />
           <Skeleton className="h-9 w-24 rounded-lg" />
         </div>
       </div>
 
-      {/* Cards Grid Skeleton */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className={cn(
-              "rounded-xl p-5 border shadow-sm space-y-4",
-              isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-            )}
-          >
+          <div key={i} className={cn(panel, 'space-y-4 p-5')}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Skeleton className="w-10 h-10 rounded-full" />
+                <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="space-y-1">
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-3 w-20" />
@@ -168,12 +146,10 @@ export function VacationSkeleton() {
               </div>
               <Skeleton className="h-6 w-20 rounded-full" />
             </div>
-
-            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="space-y-2 border-t border-[var(--app-border)] pt-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
             </div>
-
             <div className="flex items-center justify-between pt-2">
               <Skeleton className="h-8 w-24 rounded-lg" />
               <Skeleton className="h-8 w-24 rounded-lg" />
@@ -186,17 +162,11 @@ export function VacationSkeleton() {
 }
 
 export function CollaboratorsSkeleton() {
-  const { isLight } = useTheme();
-
   return (
-    <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
-      {/* Title Header Skeleton */}
-      <div className={cn(
-        "rounded-2xl p-6 border shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
+    <div className="mx-auto max-w-7xl space-y-6 p-3 animate-fade-in sm:p-6">
+      <div className={cn(panel, 'flex flex-col items-start justify-between gap-4 rounded-2xl p-6 sm:flex-row sm:items-center')}>
         <div className="flex items-center gap-3">
-          <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
+          <Skeleton className="h-12 w-12 shrink-0 rounded-2xl" />
           <div className="space-y-2">
             <Skeleton className="h-7 w-64" />
             <Skeleton className="h-4 w-44" />
@@ -204,13 +174,9 @@ export function CollaboratorsSkeleton() {
         </div>
       </div>
 
-      {/* Form Card Skeleton */}
-      <div className={cn(
-        "p-6 rounded-2xl border shadow-sm space-y-4",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
-        <Skeleton className="h-5 w-44 mb-3" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={cn(panel, 'space-y-4 rounded-2xl p-6')}>
+        <Skeleton className="mb-3 h-5 w-44" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-10 w-full rounded-lg" />
@@ -221,28 +187,24 @@ export function CollaboratorsSkeleton() {
         </div>
       </div>
 
-      {/* Collaborator List Skeleton */}
       <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, groupIndex) => (
           <div key={groupIndex} className="space-y-3">
             <Skeleton className="h-6 w-32 rounded-md" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, itemIndex) => (
                 <div
                   key={itemIndex}
-                  className={cn(
-                    "p-4 rounded-xl border shadow-xs flex items-center justify-between gap-3",
-                    isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-                  )}
+                  className={cn(panel, 'flex items-center justify-between gap-3 p-4')}
                 >
                   <div className="flex items-center gap-3">
-                    <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
                     <div className="space-y-1.5">
                       <Skeleton className="h-4 w-32" />
                       <Skeleton className="h-3 w-20" />
                     </div>
                   </div>
-                  <Skeleton className="w-8 h-8 rounded-lg shrink-0" />
+                  <Skeleton className="h-8 w-8 shrink-0 rounded-lg" />
                 </div>
               ))}
             </div>
@@ -254,25 +216,17 @@ export function CollaboratorsSkeleton() {
 }
 
 export function GenericPageSkeleton() {
-  const { isLight } = useTheme();
-
   return (
-    <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
-      <div className={cn(
-        "rounded-2xl p-6 border shadow-sm flex items-center gap-3",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
-        <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
+    <div className="mx-auto max-w-7xl space-y-6 p-3 animate-fade-in sm:p-6">
+      <div className={cn(panel, 'flex items-center gap-3 rounded-2xl p-6')}>
+        <Skeleton className="h-12 w-12 shrink-0 rounded-2xl" />
         <div className="space-y-2">
           <Skeleton className="h-7 w-60" />
           <Skeleton className="h-4 w-40" />
         </div>
       </div>
 
-      <div className={cn(
-        "p-6 rounded-2xl border shadow-sm space-y-4",
-        isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-      )}>
+      <div className={cn(panel, 'space-y-4 rounded-2xl p-6')}>
         <Skeleton className="h-8 w-full rounded-lg" />
         <Skeleton className="h-20 w-full rounded-lg" />
         <Skeleton className="h-20 w-full rounded-lg" />

@@ -25,78 +25,78 @@ interface AuthContextType {
   isLoading: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  setUserRole: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'escala_offshore_official_session_v3';
+/** UX gate only — real security is firestore.rules */
 const ALLOWED_EMAILS = [
   'odn1mecanicadept@gmail.com',
   'yago.sardinha100@gmail.com',
-  'joubertribeir@gmail.com'
-];
+  'joubertribeir@gmail.com',
+] as const;
 
-function isEmailAllowed(email?: string): boolean {
+function isEmailAllowed(email?: string | null): boolean {
   if (!email) return false;
-  return ALLOWED_EMAILS.some(allowed => allowed.toLowerCase() === email.trim().toLowerCase());
+  return ALLOWED_EMAILS.some((allowed) => allowed === email.trim().toLowerCase());
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (err) {
-      console.warn('Error reading local auth state:', err);
-    }
-    return null;
-  });
+  // Session comes ONLY from Firebase — never hydrate privileged state from localStorage
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Client-side allowlist and role lookup:
-    // Determines if user is admin by checking doc(firestore, 'admins', fbUser.uid) or ALLOWED_EMAILS list.
-    // Real server-side security is strictly enforced by Firestore Security Rules (firestore.rules).
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        if (fbUser.email && !isEmailAllowed(fbUser.email)) {
-          await firebaseSignOut(auth);
-          setUser(null);
-          localStorage.removeItem(STORAGE_KEY);
-          alert(`Acesso não autorizado para o e-mail: ${fbUser.email}. Este e-mail não possui permissão de acesso.`);
-        } else {
-          let role: UserRole = 'user';
-          try {
-            const adminDocRef = doc(firestore, 'admins', fbUser.uid);
-            const adminDoc = await getDoc(adminDocRef);
-            if (adminDoc.exists() || isEmailAllowed(fbUser.email)) {
-              role = 'admin';
-            }
-          } catch (err) {
-            // Fallback: If doc lookup fails or offline, use allowlist
-            if (isEmailAllowed(fbUser.email)) {
-              role = 'admin';
-            }
-          }
-
-          const activeUser: User = {
-            id: fbUser.uid,
-            username: fbUser.email ? fbUser.email.split('@')[0] : 'usuario',
-            name: fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Usuário Autenticado'),
-            email: fbUser.email || undefined,
-            avatar: fbUser.photoURL || undefined,
-            role,
-          };
-          setUser(activeUser);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(activeUser));
-        }
-      } else {
+      if (!fbUser) {
         setUser(null);
-        localStorage.removeItem(STORAGE_KEY);
+        setIsLoading(false);
+        return;
       }
+
+      // Align with firestore.rules: email_verified == true
+      if (!fbUser.emailVerified) {
+        await firebaseSignOut(auth);
+        setUser(null);
+        setIsLoading(false);
+        alert(
+          'Seu e-mail ainda não está verificado. Confirme o e-mail da conta Google e tente novamente.',
+        );
+        return;
+      }
+
+      if (!isEmailAllowed(fbUser.email)) {
+        await firebaseSignOut(auth);
+        setUser(null);
+        setIsLoading(false);
+        alert(
+          `Acesso não autorizado para o e-mail: ${fbUser.email}. Este e-mail não possui permissão de acesso.`,
+        );
+        return;
+      }
+
+      let role: UserRole = 'user';
+      try {
+        const adminDoc = await getDoc(doc(firestore, 'admins', fbUser.uid));
+        // Document in /admins/{uid} is the preferred admin signal; allowlist is login UX only.
+        // Until custom claims are set up, allowlisted emails still get admin for ops continuity.
+        if (adminDoc.exists() || isEmailAllowed(fbUser.email)) {
+          role = 'admin';
+        }
+      } catch {
+        if (isEmailAllowed(fbUser.email)) role = 'admin';
+      }
+
+      setUser({
+        id: fbUser.uid,
+        username: fbUser.email ? fbUser.email.split('@')[0] : 'usuario',
+        name:
+          fbUser.displayName ||
+          (fbUser.email ? fbUser.email.split('@')[0] : 'Usuário Autenticado'),
+        email: fbUser.email || undefined,
+        avatar: fbUser.photoURL || undefined,
+        role,
+      });
       setIsLoading(false);
     });
 
@@ -107,14 +107,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      if (result.user && result.user.email && !isEmailAllowed(result.user.email)) {
+      if (result.user?.email && !isEmailAllowed(result.user.email)) {
         await firebaseSignOut(auth);
         setUser(null);
-        localStorage.removeItem(STORAGE_KEY);
-        alert(`Acesso não autorizado para o e-mail: ${result.user.email}. Este e-mail não possui permissão de acesso.`);
+        alert(
+          `Acesso não autorizado para o e-mail: ${result.user.email}. Este e-mail não possui permissão de acesso.`,
+        );
       }
-    } catch (err: any) {
+    } catch (err) {
       console.warn('Firebase Google Login error:', err);
+      throw err;
     }
   };
 
@@ -125,15 +127,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Error signing out from Firebase:', err);
     }
     setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
-  };
-
-  const setUserRole = (role: UserRole) => {
-    if (user) {
-      const updated = { ...user, role };
-      setUser(updated);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    }
   };
 
   return (
@@ -144,7 +137,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         loginWithGoogle,
         logout,
-        setUserRole,
       }}
     >
       {children}

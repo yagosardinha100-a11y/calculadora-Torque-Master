@@ -1,6 +1,5 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useData } from '../context/DataContext';
-import { deduplicateCollaborators } from '../lib/deduplicateUtils';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -46,10 +45,6 @@ export default function CollaboratorsPage() {
   const [startDate, setStartDate] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    deduplicateCollaborators().catch(console.error);
-  }, []);
 
   if (loading) return <CollaboratorsSkeleton />;
 

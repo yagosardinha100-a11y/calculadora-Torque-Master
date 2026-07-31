@@ -1,4 +1,9 @@
-import type { VacationPlan, ScheduleEvent } from '../types';
+/**
+ * Camada legada — preferir mutações via DataContext.
+ * Mantida para compatibilidade; usa o publisher unificado.
+ */
+
+import type { VacationPlan } from '../types';
 import {
   createVacationInFirestore,
   updateVacationInFirestore,
@@ -11,13 +16,20 @@ import {
   getEventsFromFirestore,
 } from '../services/events';
 import { getCollaboratorsFromFirestore } from '../services/collaborators';
+import {
+  buildVacationScheduleEvents,
+  findVacationPublishConflicts,
+} from './vacationPublish';
 
 export async function saveVacationPlan(
-  data: Omit<VacationPlan, 'status' | 'createdAt'> & { status?: 'draft' | 'confirmed'; id?: string }
+  data: Omit<VacationPlan, 'status' | 'createdAt'> & {
+    status?: 'draft' | 'confirmed';
+    id?: string;
+  },
 ): Promise<string> {
   const planId = data.id || crypto.randomUUID();
   const existingVacations = await getVacationsFromFirestore();
-  const existing = existingVacations.find(v => v.id === planId);
+  const existing = existingVacations.find((v) => v.id === planId);
   const nowIso = new Date().toISOString();
 
   const plan: VacationPlan = {
@@ -30,6 +42,12 @@ export async function saveVacationPlan(
     status: data.status || existing?.status || 'draft',
     createdAt: existing?.createdAt || nowIso,
     updatedAt: nowIso,
+    vacationType: data.vacationType ?? existing?.vacationType,
+    boardingStart: data.boardingStart ?? existing?.boardingStart,
+    boardingEnd: data.boardingEnd ?? existing?.boardingEnd,
+    soldDays: data.soldDays ?? existing?.soldDays,
+    requiresCoverageTurn1: data.requiresCoverageTurn1 ?? existing?.requiresCoverageTurn1,
+    requiresCoverageTurn2: data.requiresCoverageTurn2 ?? existing?.requiresCoverageTurn2,
   };
 
   if (existing) {
@@ -49,19 +67,19 @@ export async function saveVacationPlan(
 
 export async function confirmAndPublishVacation(planId: string): Promise<void> {
   const existingVacations = await getVacationsFromFirestore();
-  const plan = existingVacations.find(v => v.id === planId);
+  const plan = existingVacations.find((v) => v.id === planId);
   if (!plan) return;
 
-  const updatedPlan = { ...plan, status: 'confirmed' as const, updatedAt: new Date().toISOString() };
-  await updateVacationInFirestore(planId, { status: 'confirmed' });
+  const updatedPlan = {
+    ...plan,
+    status: 'confirmed' as const,
+    updatedAt: new Date().toISOString(),
+  };
   await publishVacationEventsToSchedule(updatedPlan);
+  await updateVacationInFirestore(planId, { status: 'confirmed' });
 }
 
 export async function unconfirmVacation(planId: string): Promise<void> {
-  const existingVacations = await getVacationsFromFirestore();
-  const plan = existingVacations.find(v => v.id === planId);
-  if (!plan) return;
-
   await updateVacationInFirestore(planId, { status: 'draft' });
   await removeVacationEventsFromSchedule(planId);
 }
@@ -73,48 +91,26 @@ export async function deleteVacationPlan(planId: string): Promise<void> {
 
 async function removeVacationEventsFromSchedule(planId: string): Promise<void> {
   const allEvents = await getEventsFromFirestore();
-  const events = allEvents.filter(e => e.vacationPlanId === planId);
+  const events = allEvents.filter((e) => e.vacationPlanId === planId);
   for (const e of events) {
     await deleteEventFromFirestore(e.id);
   }
 }
 
 async function publishVacationEventsToSchedule(plan: VacationPlan): Promise<void> {
-  await removeVacationEventsFromSchedule(plan.id);
-
+  const allEvents = await getEventsFromFirestore();
   const colabs = await getCollaboratorsFromFirestore();
-  const vacationer = colabs.find(c => c.id === plan.collaboratorId);
-  const vacationerName = vacationer ? vacationer.name : 'Colaborador';
-  const nowIso = new Date().toISOString();
+  const vacationer = colabs.find((c) => c.id === plan.collaboratorId);
+  const newEvents = buildVacationScheduleEvents(plan, vacationer?.name || 'Colaborador');
 
-  const newEvents: ScheduleEvent[] = [
-    {
-      id: `event-vacation-${plan.id}`,
-      collaboratorId: plan.collaboratorId,
-      startDate: plan.startDate,
-      endDate: plan.endDate,
-      status: 'Férias',
-      note: plan.note ? `Férias: ${plan.note}` : 'Férias Programadas',
-      vacationPlanId: plan.id,
-      updatedAt: nowIso,
-    },
-  ];
+  const conflicts = findVacationPublishConflicts(plan, newEvents, allEvents);
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Não foi possível lançar as férias:\n${conflicts.map((c) => c.message).join('\n')}`,
+    );
+  }
 
-  plan.coverages.forEach((cov, idx) => {
-    if (cov.collaboratorId && cov.startDate && cov.endDate) {
-      newEvents.push({
-        id: `event-cov-${plan.id}-${idx}`,
-        collaboratorId: cov.collaboratorId,
-        startDate: cov.startDate,
-        endDate: cov.endDate,
-        status: 'Dobra',
-        motive: `Cobertura de Férias de ${vacationerName}`,
-        note: cov.note || `Dobra para Cobertura de Férias (${vacationerName})`,
-        vacationPlanId: plan.id,
-        updatedAt: nowIso,
-      });
-    }
-  });
+  await removeVacationEventsFromSchedule(plan.id);
 
   for (const evt of newEvents) {
     await createEventInFirestore(evt);

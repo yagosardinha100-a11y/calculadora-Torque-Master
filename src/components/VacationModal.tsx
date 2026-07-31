@@ -513,34 +513,41 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3 sm:p-4 backdrop-blur-[2px]">
+      <div
+        className="app-surface w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-[var(--app-border)] animate-in fade-in zoom-in-95 duration-150"
+        role="dialog"
+        aria-modal="true"
+        aria-label={initialPlan ? 'Editar Programação de Férias' : 'Nova Programação de Férias'}
+      >
         {/* Header */}
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0 border-b border-slate-800">
+        <div
+          className="flex items-center justify-between px-6 py-4 text-white shrink-0"
+          style={{ background: 'var(--app-header)' }}
+        >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600/30 text-blue-400 rounded-lg border border-blue-500/30 shrink-0">
-              <Palmtree className="w-5 h-5" />
-            </div>
+            <Palmtree className="w-5 h-5 text-[var(--app-accent)] shrink-0" />
             <div>
-              <h3 className="font-bold text-base text-white">
+              <h3 className="font-display font-semibold text-[15px] text-white">
                 {initialPlan ? 'Editar Programação de Férias' : 'Nova Programação de Férias'}
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-white/60 mt-0.5">
                 Programe o período de férias e defina os substitutos de cobertura.
               </p>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="text-slate-400 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition-colors cursor-pointer"
-            title="Fechar"
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-white/60 transition-colors hover:text-white cursor-pointer"
+            aria-label="Fechar"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content Form */}
-        <form onSubmit={handleSaveDraft} className="p-6 overflow-y-auto space-y-6 text-sm flex-1 bg-slate-50/50">
+        <form onSubmit={handleSaveDraft} className="p-6 overflow-y-auto space-y-6 text-sm flex-1 bg-[var(--app-surface-muted)]">
           
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2.5 text-xs text-red-700 font-medium">
@@ -550,9 +557,9 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
           )}
 
           {/* Colaborador & Período Principal */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-2xs">
-            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
-              <UserCheck className="w-4 h-4 text-blue-600" />
+          <div className="bg-[var(--app-surface)] border border-[var(--app-border)] rounded-xl p-5 space-y-4 shadow-2xs">
+            <h4 className="font-bold text-[var(--app-text)] text-xs uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-[var(--app-border)]">
+              <UserCheck className="w-4 h-4 text-[var(--app-accent)]" />
               1. Colaborador em Férias
             </h4>
 
@@ -577,47 +584,71 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
 
               {/* Tipo de Férias */}
               <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                <label className="mb-2 block text-xs font-semibold text-[var(--app-text-muted)]">
                   Tipo de Férias
                 </label>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <label className={`flex-1 flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-colors ${vacationType === 'FULL' ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300' : 'hover:bg-slate-50 border-slate-200'}`}>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <label
+                    className={`flex flex-1 cursor-pointer items-start gap-2.5 rounded-lg border p-3 transition-colors ${
+                      vacationType === 'FULL'
+                        ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)] ring-1 ring-[var(--app-accent)]'
+                        : 'border-[var(--app-border)] hover:bg-[var(--app-surface-muted)]'
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="vacationType"
                       value="FULL"
                       checked={vacationType === 'FULL'}
                       onChange={() => handleVacationTypeChange('FULL')}
-                      className="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      className="mt-0.5 h-4 w-4 cursor-pointer accent-[var(--app-accent)]"
                     />
                     <div className="flex flex-col">
-                      <span className="font-semibold text-slate-900 text-sm leading-tight">Férias integrais (30 dias)</span>
+                      <span className="text-sm leading-tight font-semibold text-[var(--app-text)]">
+                        Férias integrais (30 dias)
+                      </span>
                     </div>
                   </label>
-                  <label className={`flex-1 flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-colors ${vacationType === 'SELL_10' ? 'bg-amber-50 border-amber-300 ring-1 ring-amber-300' : 'hover:bg-slate-50 border-slate-200'}`}>
+                  <label
+                    className={`flex flex-1 cursor-pointer items-start gap-2.5 rounded-lg border p-3 transition-colors ${
+                      vacationType === 'SELL_10'
+                        ? 'border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/40'
+                        : 'border-[var(--app-border)] hover:bg-[var(--app-surface-muted)]'
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="vacationType"
                       value="SELL_10"
                       checked={vacationType === 'SELL_10'}
                       onChange={() => handleVacationTypeChange('SELL_10')}
-                      className="mt-0.5 w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      className="mt-0.5 h-4 w-4 cursor-pointer accent-amber-600"
                     />
                     <div className="flex flex-col">
-                      <span className="font-semibold text-slate-900 text-sm leading-tight">Venda parcial (10 dias)</span>
+                      <span className="text-sm leading-tight font-semibold text-[var(--app-text)]">
+                        Venda parcial (10 dias)
+                      </span>
                     </div>
                   </label>
-                  <label className={`flex-1 flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-colors ${vacationType === 'SELL_ALL' ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-300' : 'hover:bg-slate-50 border-slate-200'}`}>
+                  <label
+                    className={`flex flex-1 cursor-pointer items-start gap-2.5 rounded-lg border p-3 transition-colors ${
+                      vacationType === 'SELL_ALL'
+                        ? 'border-emerald-500/50 bg-emerald-500/10 ring-1 ring-emerald-500/40'
+                        : 'border-[var(--app-border)] hover:bg-[var(--app-surface-muted)]'
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="vacationType"
                       value="SELL_ALL"
                       checked={vacationType === 'SELL_ALL'}
                       onChange={() => handleVacationTypeChange('SELL_ALL')}
-                      className="mt-0.5 w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      className="mt-0.5 h-4 w-4 cursor-pointer accent-emerald-600"
                     />
                     <div className="flex flex-col">
-                      <span className="font-semibold text-slate-900 text-sm leading-tight">Venda total</span>
+                      <span className="text-sm leading-tight font-semibold text-[var(--app-text)]">
+                        Venda total
+                      </span>
                     </div>
                   </label>
                 </div>
@@ -643,7 +674,7 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
                           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 border cursor-pointer ${
                             isSelected
                               ? 'bg-emerald-600 text-white border-emerald-700 font-bold'
-                              : 'bg-white text-slate-800 border-slate-200 hover:bg-emerald-50'
+                              : 'bg-[var(--app-surface)] text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-surface-muted)]'
                           }`}
                         >
                           {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
@@ -657,7 +688,7 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  <Calendar className="w-3.5 h-3.5 text-[var(--app-accent)]" />
                   Início das Férias
                 </label>
                 <Input
@@ -670,7 +701,7 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  <Calendar className="w-3.5 h-3.5 text-[var(--app-accent)]" />
                   Término das Férias
                 </label>
                 <Input
@@ -695,7 +726,7 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
                       setEndDate(addDaysToStr(autoAdjustNotice.original, 29));
                       setAutoAdjustNotice(null);
                     }}
-                    className="shrink-0 px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold rounded text-[11px] transition-colors self-end sm:self-auto cursor-pointer"
+                    className="shrink-0 px-2.5 py-1 bg-[var(--app-surface)] hover:bg-[var(--app-accent-soft)] text-[var(--app-accent)] border border-[var(--app-border)] font-bold rounded text-[11px] transition-colors self-end sm:self-auto cursor-pointer"
                   >
                     Desfazer e usar {autoAdjustNotice.original.split('-').reverse().join('/')}
                   </button>
@@ -794,11 +825,11 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
 
           {/* Definição das Coberturas */}
           {vacationType !== 'SELL_ALL' && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-2xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="bg-[var(--app-surface)] border border-[var(--app-border)] rounded-xl p-5 space-y-4 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--app-border)]">
                 <div>
-                  <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-bold text-[var(--app-text)] text-xs uppercase tracking-wider flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[var(--app-accent)]" />
                     2. Cobertura de Férias (Substitutos de 7 Dias)
                   </h4>
                 </div>
@@ -807,21 +838,20 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
                   {coverageSlots.length > 0 && (
                     <Button
                       type="button"
-                      variant="outline"
                       size="sm"
                       onClick={handleApplySmartSplit}
-                      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-700 font-bold gap-1.5 text-xs shrink-0 cursor-pointer"
+                      className="gap-1.5 text-xs shrink-0"
                     >
-                      <Zap className="w-3.5 h-3.5 fill-current text-blue-200" />
+                      <Zap className="w-3.5 h-3.5 fill-current" />
                       {coverageSlots.length === 2 ? 'Aplicar Sugestão Inteligente (2x 7d)' : 'Aplicar Sugestão (1x 7d)'}
                     </Button>
                   )}
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={handleAddCoverage}
-                    className="bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200 font-semibold gap-1 text-xs shrink-0 cursor-pointer"
+                    className="gap-1 text-xs shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Nova Cobertura
@@ -830,7 +860,7 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
               </div>
 
               {coverages.length === 0 ? (
-                <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center text-xs text-slate-600 font-medium">
+                <div className="p-4 bg-[var(--app-surface-muted)] border border-dashed border-[var(--app-border)] rounded-xl text-center text-xs text-[var(--app-text-muted)] font-medium">
                   Nenhuma cobertura adicionada ainda. Clique em <strong>"Aplicar Sugestão {coverageSlots.length === 2 ? 'Inteligente' : ''}"</strong> para auto-preencher os substitutos.
                 </div>
               ) : (
@@ -870,10 +900,10 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
                   const candidateInfo = enrichedCandidates?.find(c => c.collaborator.id === cov.collaboratorId);
 
                   return (
-                    <div key={cov.id} className="p-4 bg-slate-50/80 border border-slate-200 rounded-xl shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-200 flex-wrap gap-2">
+                    <div key={cov.id} className="p-4 bg-[var(--app-surface-muted)] border border-[var(--app-border)] rounded-xl shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-[var(--app-border)] flex-wrap gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-900 bg-slate-200 px-2.5 py-0.5 rounded-md">
+                          <span className="text-xs font-bold text-[var(--app-text)] bg-[var(--app-surface-muted)] px-2.5 py-0.5 rounded-md">
                             Turno #{slotSuggestion?.slotNumber || (index + 1)} ({cov.startDate && cov.endDate ? `${cov.startDate.split('-').reverse().join('/')} a ${cov.endDate.split('-').reverse().join('/')}` : '7 dias'})
                           </span>
                         </div>
@@ -995,15 +1025,15 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
         </form>
 
         {/* Footer Actions */}
-        <div className="bg-white px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+        <div className="bg-[var(--app-surface-muted)] px-6 py-4 border-t border-[var(--app-border)] flex items-center justify-end gap-3 shrink-0">
           <Button
             type="button"
             variant="outline"
             onClick={handleSaveDraft}
             disabled={isSubmitting}
-            className="h-10 px-4 whitespace-nowrap bg-white border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold text-xs rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+            className="gap-2 whitespace-nowrap text-xs"
           >
-            <Save className="w-4 h-4 text-slate-500" />
+            <Save className="w-4 h-4" />
             <span>Salvar Rascunho</span>
           </Button>
 
@@ -1011,9 +1041,9 @@ export function VacationModal({ initialPlan, onClose }: VacationModalProps) {
             type="button"
             onClick={handleConfirmAndPublish}
             disabled={isSubmitting}
-            className="h-10 px-4 whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+            className="gap-2 whitespace-nowrap text-xs"
           >
-            <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+            <CheckCircle2 className="w-4 h-4" />
             <span>Confirmar e Lançar na Escala</span>
           </Button>
         </div>

@@ -29,6 +29,11 @@ import {
   createTrainingInFirestore,
   deleteTrainingFromFirestore,
 } from '../services/trainings';
+import { findEventConflicts, isValidDateRange } from '../lib/scheduleEngine';
+import {
+  buildVacationScheduleEvents,
+  findVacationPublishConflicts,
+} from '../lib/vacationPublish';
 
 interface DataContextType {
   collaborators: Collaborator[];
@@ -348,6 +353,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --- EVENT MUTATIONS ---
   const addEvent = useCallback(
     async (evt: Omit<ScheduleEvent, 'id'> & { id?: string }): Promise<ScheduleEvent> => {
+      if (!isValidDateRange(evt.startDate, evt.endDate)) {
+        throw new Error('Data inicial deve ser anterior ou igual à data final.');
+      }
+
+      const conflicts = findEventConflicts(evt, events);
+      if (conflicts.length > 0) {
+        throw new Error(
+          `Conflito de agenda: ${conflicts.map((c) => c.message).join(' ')}`,
+        );
+      }
+
       const id = evt.id || crypto.randomUUID();
       const nowIso = new Date().toISOString();
       const newEvt: ScheduleEvent = {
@@ -356,25 +372,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updatedAt: nowIso,
       };
 
-      setEvents(prev => [...prev.filter(e => e.id !== id), newEvt]);
+      setEvents((prev) => [...prev.filter((e) => e.id !== id), newEvt]);
 
       try {
         return await createEventInFirestore(newEvt);
       } catch (err) {
-        setEvents(prev => prev.filter(e => e.id !== id));
+        setEvents((prev) => prev.filter((e) => e.id !== id));
         throw err;
       }
     },
-    []
+    [events],
   );
 
   const updateEvent = useCallback(
     async (id: string, updates: Partial<ScheduleEvent>): Promise<void> => {
+      const existing = events.find((e) => e.id === id);
+      if (!existing) throw new Error('Evento não encontrado.');
+
+      const merged = { ...existing, ...updates };
+      if (!isValidDateRange(merged.startDate, merged.endDate)) {
+        throw new Error('Data inicial deve ser anterior ou igual à data final.');
+      }
+
+      const conflicts = findEventConflicts(merged, events);
+      if (conflicts.length > 0) {
+        throw new Error(
+          `Conflito de agenda: ${conflicts.map((c) => c.message).join(' ')}`,
+        );
+      }
+
       const prevList = [...events];
       const nowIso = new Date().toISOString();
 
-      setEvents(prev =>
-        prev.map(e => (e.id === id ? { ...e, ...updates, updatedAt: nowIso } : e))
+      setEvents((prev) =>
+        prev.map((e) => (e.id === id ? { ...e, ...updates, updatedAt: nowIso } : e)),
       );
 
       try {
@@ -384,7 +415,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw err;
       }
     },
-    [events]
+    [events],
   );
 
   const deleteEvent = useCallback(
@@ -442,8 +473,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteTurma = useCallback(
     async (id: string): Promise<void> => {
+      const inUse = collaborators.some((c) => c.turmaId === id);
+      if (inUse) {
+        throw new Error(
+          'Não é possível excluir uma turma com colaboradores vinculados. Transfira-os antes.',
+        );
+      }
+
       const prevList = [...turmas];
-      setTurmas(prev => prev.filter(t => t.id !== id));
+      setTurmas((prev) => prev.filter((t) => t.id !== id));
 
       try {
         await deleteTurmaFromFirestore(id);
@@ -452,7 +490,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw err;
       }
     },
-    [turmas]
+    [turmas, collaborators],
   );
 
   // --- VACATION MUTATIONS ---
@@ -467,61 +505,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const publishVacationEventsToSchedule = async (plan: VacationPlan) => {
-    await removeVacationEventsFromSchedule(plan.id);
-
-    const vacationer = collaborators.find(c => c.id === plan.collaboratorId);
+    const vacationer = collaborators.find((c) => c.id === plan.collaboratorId);
     const vacationerName = vacationer ? vacationer.name : 'Colaborador';
-    const nowIso = new Date().toISOString();
+    const newEvents = buildVacationScheduleEvents(plan, vacationerName);
 
-    const newEvents: ScheduleEvent[] = [];
-
-    // For SELL_ALL, we don't create an event for the titular
-    if (plan.vacationType !== 'SELL_ALL') {
-      let absenceStart = plan.startDate;
-      if (plan.vacationType === 'SELL_10' && plan.boardingEnd) {
-        // The absence starts the day after the initial boarding ends
-        absenceStart = new Date(new Date(plan.boardingEnd).getTime() + 86400000).toISOString().split('T')[0];
-      }
-
-      newEvents.push({
-        id: `event-vacation-${plan.id}`,
-        collaboratorId: plan.collaboratorId,
-        startDate: absenceStart,
-        endDate: plan.endDate,
-        status: 'Férias',
-        note: plan.note ? `Férias: ${plan.note}` : 'Férias Programadas',
-        vacationPlanId: plan.id,
-        updatedAt: nowIso,
-      });
+    const conflicts = findVacationPublishConflicts(plan, newEvents, events);
+    if (conflicts.length > 0) {
+      throw new Error(
+        `Não foi possível lançar as férias:\n${conflicts.map((c) => c.message).join('\n')}`,
+      );
     }
 
-    plan.coverages.forEach((cov, idx) => {
-      if (cov.collaboratorId && cov.startDate && cov.endDate) {
-        newEvents.push({
-          id: `event-cov-${plan.id}-${idx}`,
-          collaboratorId: cov.collaboratorId,
-          startDate: cov.startDate,
-          endDate: cov.endDate,
-          status: 'Dobra',
-          motive: `Cobertura de Férias de ${vacationerName}`,
-          note: cov.note || `Dobra para Cobertura de Férias (${vacationerName})`,
-          vacationPlanId: plan.id,
-          updatedAt: nowIso,
-        });
-      }
-    });
+    await removeVacationEventsFromSchedule(plan.id);
+
+    if (newEvents.length === 0) return;
 
     const batch = writeBatch(firestore);
-    newEvents.forEach(e =>
+    newEvents.forEach((e) =>
       batch.set(
         doc(firestore, 'events', e.id),
         { ...e, updatedAt: serverTimestamp() },
-        { merge: true }
-      )
+        { merge: true },
+      ),
     );
     await batch.commit();
 
-    setEvents(prev => [...prev.filter(e => e.vacationPlanId !== plan.id), ...newEvents]);
+    setEvents((prev) => [...prev.filter((e) => e.vacationPlanId !== plan.id), ...newEvents]);
   };
 
   const saveVacationPlan = useCallback(
@@ -533,6 +542,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const nowIso = new Date().toISOString();
 
       const plan: VacationPlan = {
+        ...(existing || {}),
         id: planId,
         collaboratorId: data.collaboratorId,
         startDate: data.startDate,
@@ -542,6 +552,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         status: data.status || existing?.status || 'draft',
         createdAt: existing?.createdAt || nowIso,
         updatedAt: nowIso,
+        vacationType: data.vacationType,
+        boardingStart: data.boardingStart,
+        boardingEnd: data.boardingEnd,
+        soldDays: data.soldDays,
+        requiresCoverageTurn1: data.requiresCoverageTurn1,
+        requiresCoverageTurn2: data.requiresCoverageTurn2,
+        version: data.version ?? existing?.version,
       };
 
       setVacations(prev => [...prev.filter(v => v.id !== planId), plan]);
@@ -565,16 +582,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const confirmVacationPlan = useCallback(
     async (planId: string): Promise<void> => {
-      const plan = vacations.find(v => v.id === planId);
+      const plan = vacations.find((v) => v.id === planId);
       if (!plan) return;
 
-      const updatedPlan: VacationPlan = { ...plan, status: 'confirmed', updatedAt: new Date().toISOString() };
-      setVacations(prev => prev.map(v => (v.id === planId ? updatedPlan : v)));
+      const updatedPlan: VacationPlan = {
+        ...plan,
+        status: 'confirmed',
+        updatedAt: new Date().toISOString(),
+      };
 
-      await updateVacationInFirestore(planId, { status: 'confirmed' });
-      await publishVacationEventsToSchedule(updatedPlan);
+      // Validate conflicts BEFORE mutating local state
+      const vacationer = collaborators.find((c) => c.id === plan.collaboratorId);
+      const proposed = buildVacationScheduleEvents(
+        updatedPlan,
+        vacationer?.name || 'Colaborador',
+      );
+      const conflicts = findVacationPublishConflicts(plan, proposed, events);
+      if (conflicts.length > 0) {
+        throw new Error(
+          `Não foi possível lançar as férias:\n${conflicts.map((c) => c.message).join('\n')}`,
+        );
+      }
+
+      setVacations((prev) => prev.map((v) => (v.id === planId ? updatedPlan : v)));
+
+      try {
+        await updateVacationInFirestore(planId, { status: 'confirmed' });
+        await publishVacationEventsToSchedule(updatedPlan);
+      } catch (err) {
+        setVacations((prev) => prev.map((v) => (v.id === planId ? plan : v)));
+        throw err;
+      }
     },
-    [vacations, collaborators, events]
+    [vacations, collaborators, events],
   );
 
   const unconfirmVacationPlan = useCallback(

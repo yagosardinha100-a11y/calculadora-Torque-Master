@@ -10,6 +10,7 @@ import {
   BarChart3,
   LogOut,
   Anchor,
+  Settings2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
@@ -32,6 +33,7 @@ export default function Layout() {
     { name: 'Dobras', path: '/dobras', icon: Sparkles },
     { name: 'Treinamentos', path: '/treinamentos', icon: GraduationCap },
     { name: 'Relatórios', path: '/relatorios', icon: BarChart3 },
+    { name: 'Turmas', path: '/configuracoes', icon: Settings2 },
   ];
 
   return (

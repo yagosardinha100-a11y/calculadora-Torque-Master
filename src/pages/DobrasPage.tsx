@@ -41,18 +41,22 @@ export default function DobrasPage() {
     e.preventDefault();
     if (!formColabId || !formStartDate || !formEndDate) return;
 
-    await addEvent({
-      collaboratorId: formColabId,
-      startDate: formStartDate,
-      endDate: formEndDate,
-      status: 'Dobra' as Status,
-      motive: formMotive || 'Dobra de cobertura',
-      note: formNote,
-    });
+    try {
+      await addEvent({
+        collaboratorId: formColabId,
+        startDate: formStartDate,
+        endDate: formEndDate,
+        status: 'Dobra' as Status,
+        motive: formMotive || 'Dobra de cobertura',
+        note: formNote,
+      });
 
-    setShowAddModal(false);
-    setFormMotive('');
-    setFormNote('');
+      setShowAddModal(false);
+      setFormMotive('');
+      setFormNote('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Não foi possível lançar a dobra.');
+    }
   };
 
   const filteredEvents = events.filter((evt) => {

@@ -1,28 +1,36 @@
 # Escala Offshore
 
-Aplicação de gestão de escala 14×14 da equipe de mecânica offshore.
-
-Origem: Google AI Studio, com refinamento visual (tipografia, tokens e interface).
+Gestão de escala 14×14 da equipe de mecânica offshore (Firebase Auth + Firestore).
 
 ## Stack
 
 - React 19 + TypeScript + Vite
 - Tailwind CSS 4
 - Firebase (Auth + Firestore)
-- date-fns, lucide-react, motion
+- date-fns, lucide-react
 
 ## Desenvolvimento
 
 ```bash
-cp .env.example .env   # preencha as chaves Firebase se necessário
 npm install
-npm run dev
+npm run dev      # http://localhost:3000
+npm test
+npm run lint
+npm run build
 ```
 
-## Scripts
+## Segurança
 
-| Comando | Descrição |
-|---------|-----------|
-| `npm run dev` | Servidor de desenvolvimento |
-| `npm run build` | Build de produção |
-| `npm run lint` | Typecheck |
+- Login exclusivo via Firebase Google Auth
+- Allowlist de e-mails no client (UX) e em `firestore.rules` (fonte da verdade)
+- Writes em `/admins/{uid}` bloqueados no client
+
+## Deploy
+
+Build estático (`vite build` → `dist` / Vercel). Configure Firebase Auth authorized domains no ambiente de produção.
+
+Após alterar regras, publique `firestore.rules` no projeto Firebase (`escala-offshore-cc925` ou o projectId atual):
+
+```bash
+firebase deploy --only firestore:rules
+```

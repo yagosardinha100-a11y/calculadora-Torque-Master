@@ -55,19 +55,23 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
     e.preventDefault();
     if (!endDate) return;
 
-    if (cell.event) {
-      await updateEvent(cell.event.id, { status, endDate, motive, note });
-    } else {
-      await addEvent({
-        collaboratorId: cell.collaboratorId,
-        startDate: cell.dateStr,
-        endDate,
-        status,
-        motive,
-        note,
-      });
+    try {
+      if (cell.event) {
+        await updateEvent(cell.event.id, { status, endDate, motive, note });
+      } else {
+        await addEvent({
+          collaboratorId: cell.collaboratorId,
+          startDate: cell.dateStr,
+          endDate,
+          status,
+          motive,
+          note,
+        });
+      }
+      onClose();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Não foi possível salvar o evento.');
     }
-    onClose();
   };
 
   const handleDelete = async () => {

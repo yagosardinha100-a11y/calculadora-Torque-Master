@@ -9,9 +9,8 @@ import type { Status, Collaborator, Role } from '../types';
 import { getDayNameFromDateStr } from '../lib/turmaUtils';
 import { useTheme } from '../context/ThemeContext';
 import { 
-  Edit3, Search, Filter, Calendar, LayoutGrid, ListFilter, Anchor, 
-  ShieldCheck, Users, Sparkles, Activity, Clock, BarChart2, Kanban,
-  CheckCircle2, ArrowRight, UserCheck, AlertCircle
+  Edit3, Search, Calendar, LayoutGrid, Anchor, 
+  ShieldCheck, Users, Sparkles, Activity, BarChart2, ChevronDown
 } from 'lucide-react';
 
 interface ScheduleGridProps {
@@ -110,6 +109,12 @@ const ROLES: Role[] = [
 
 type ViewMode = 'timeline' | 'board' | 'grid' | 'daily' | 'month';
 
+const SECONDARY_VIEWS: { value: ViewMode; label: string }[] = [
+  { value: 'board', label: 'Turmas' },
+  { value: 'daily', label: 'Diário' },
+  { value: 'month', label: 'Mensal' },
+];
+
 export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps) {
   const { isLight } = useTheme();
   const [selectedCell, setSelectedCell] = useState<{ cell: CellData; collaboratorName: string } | null>(null);
@@ -198,13 +203,15 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
 
   if (collaborators.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-slate-400 bg-slate-900 border border-slate-800 rounded-xl p-6 gap-3">
-        <Users className="w-10 h-10 text-cyan-400" />
-        <p className="text-sm font-semibold">Nenhum colaborador ativo encontrado.</p>
-        <span className="text-xs text-slate-500">Adicione colaboradores na aba "Colaboradores" para gerar a matriz.</span>
+      <div className="flex flex-col items-center justify-center h-64 text-[var(--app-text-muted)] bg-[var(--app-surface-muted)] border border-[var(--app-border)] rounded-xl p-6 gap-3">
+        <Users className="w-10 h-10 text-[var(--app-accent)]" />
+        <p className="text-sm font-semibold text-[var(--app-text)]">Nenhum colaborador ativo encontrado.</p>
+        <span className="text-xs text-[var(--app-text-faint)]">Adicione colaboradores na aba "Colaboradores" para gerar a matriz.</span>
       </div>
     );
   }
+
+  const isSecondaryView = viewMode === 'board' || viewMode === 'daily' || viewMode === 'month';
 
   // Helper to extract initials for modern avatars
   const getInitials = (name: string) => {
@@ -222,52 +229,25 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
 
   return (
     <>
-      <div className={cn(
-        "flex-1 border rounded-xl shadow-xs overflow-hidden flex flex-col relative font-sans transition-colors duration-200",
-        isLight ? "bg-white border-slate-200" : "bg-slate-950 border-slate-800 shadow-2xl"
-      )}>
+      <div className="flex-1 border border-[var(--app-border)] rounded-xl shadow-xs overflow-hidden flex flex-col relative font-sans bg-[var(--app-surface)] transition-colors duration-200">
         
         {/* Modern Command & View Mode Selector Header */}
-        <div className={cn(
-          "px-3 sm:px-4 py-2.5 flex flex-col md:flex-row items-stretch md:items-center justify-between text-xs gap-2 border-b transition-colors duration-200",
-          isLight ? "bg-slate-50/90 text-slate-800 border-slate-200" : "bg-slate-900/95 text-white border-slate-800"
-        )}>
+        <div className="px-3 sm:px-4 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between text-xs gap-2 border-b border-[var(--app-border)] bg-[var(--app-surface-muted)] text-[var(--app-text)]">
           {/* Interactive View Mode Selector */}
           <div className="flex items-center gap-2 flex-wrap w-full justify-start md:justify-start">
-            <div className={cn(
-              "flex items-center gap-1.5 p-1.5 rounded-xl border text-xs",
-              isLight ? "bg-slate-100 border-slate-200" : "bg-slate-950 border-slate-800 shadow-inner"
-            )}>
+            <div className="flex items-center gap-1 p-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] text-xs">
               <button
                 onClick={() => setViewMode('timeline')}
                 className={cn(
                   "px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all select-none active:scale-95 cursor-pointer",
                   viewMode === 'timeline' 
-                    ? "bg-blue-600 text-white shadow-xs border-b-2 border-blue-800 font-black" 
-                    : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200 border border-transparent"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent"
+                    ? "bg-[var(--app-accent)] text-white shadow-xs font-black" 
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface)]"
                 )}
                 title="Linha do Tempo Visual de Embarque (Gantt)"
               >
-                <Activity className="w-4 h-4 text-cyan-300" />
+                <Activity className="w-4 h-4" />
                 <span>Linha do Tempo</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('board')}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all select-none active:scale-95 cursor-pointer",
-                  viewMode === 'board' 
-                    ? "bg-blue-600 text-white shadow-xs border-b-2 border-blue-800 font-black" 
-                    : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200 border border-transparent"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent"
-                )}
-                title="Visão por Quadro de Turmas"
-              >
-                <Kanban className="w-4 h-4 text-cyan-300" />
-                <span>Turmas</span>
               </button>
 
               <button
@@ -275,10 +255,8 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                 className={cn(
                   "px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all select-none active:scale-95 cursor-pointer",
                   viewMode === 'grid' 
-                    ? "bg-blue-600 text-white shadow-xs border-b-2 border-blue-800 font-black" 
-                    : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200 border border-transparent"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent"
+                    ? "bg-[var(--app-accent)] text-white shadow-xs font-black" 
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface)]"
                 )}
                 title="Visão Matriz Limpa"
               >
@@ -286,99 +264,75 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                 <span>Matriz</span>
               </button>
 
-              <button
-                onClick={() => setViewMode('daily')}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all select-none active:scale-95 cursor-pointer",
-                  viewMode === 'daily' 
-                    ? "bg-blue-600 text-white shadow-xs border-b-2 border-blue-800 font-black" 
-                    : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200 border border-transparent"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent"
-                )}
-                title="Diário de Embarque por Data"
-              >
-                <ListFilter className="w-4 h-4" />
-                <span>Diário</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('month')}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all select-none active:scale-95 cursor-pointer",
-                  viewMode === 'month' 
-                    ? "bg-blue-600 text-white shadow-xs border-b-2 border-blue-800 font-black" 
-                    : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200 border border-transparent"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent"
-                )}
-                title="Visão Mensal em Calendário"
-              >
-                <Calendar className="w-4 h-4 text-cyan-300" />
-                <span>Mensal</span>
-              </button>
+              <div className="relative">
+                <select
+                  value={isSecondaryView ? viewMode : ''}
+                  onChange={(e) => {
+                    const next = e.target.value as ViewMode;
+                    if (next) setViewMode(next);
+                  }}
+                  className={cn(
+                    "appearance-none pl-3 pr-7 py-1.5 rounded-lg font-bold text-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)] border border-transparent transition-all",
+                    isSecondaryView
+                      ? "bg-[var(--app-accent)] text-white shadow-xs font-black"
+                      : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface)]"
+                  )}
+                  title="Outras visualizações"
+                >
+                  <option value="" disabled hidden>Mais</option>
+                  {SECONDARY_VIEWS.map(v => (
+                    <option key={v.value} value={v.value}>{v.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className={cn(
+                  "w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none",
+                  isSecondaryView ? "text-white" : "text-[var(--app-text-muted)]"
+                )} />
+              </div>
             </div>
 
             <button
               onClick={() => setShowPobChart(prev => !prev)}
               className={cn(
-                "px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all select-none active:scale-95 hidden sm:flex cursor-pointer",
+                "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all select-none active:scale-95 hidden sm:flex cursor-pointer",
                 showPobChart 
-                  ? "bg-blue-50 text-blue-800 border-blue-200 shadow-xs" 
-                  : isLight
-                    ? "bg-white text-slate-600 border-slate-300 hover:bg-slate-100"
-                    : "bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-white"
+                  ? "bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] shadow-xs" 
+                  : "bg-[var(--app-surface)] text-[var(--app-text-muted)] border-[var(--app-border)] hover:bg-[var(--app-surface-muted)] hover:text-[var(--app-text)]"
               )}
               title="Alternar Gráfico POB"
             >
-              <BarChart2 className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400" />
+              <BarChart2 className="w-3.5 h-3.5 text-[var(--app-accent)]" />
               <span>Gráfico POB</span>
             </button>
 
-            <div className={cn(
-              "text-xs px-3 py-1.5 rounded-xl border font-bold shrink-0",
-              isLight ? "bg-white text-slate-700 border-slate-200" : "text-slate-300 bg-slate-950 border-slate-800"
-            )}>
-              Integrantes: <strong className={isLight ? "text-blue-700 font-black" : "text-cyan-400 font-black"}>{filteredCollaborators.length}</strong>/{collaborators.length}
+            <div className="text-xs px-3 py-1.5 rounded-xl border border-[var(--app-border)] font-bold shrink-0 bg-[var(--app-surface)] text-[var(--app-text-muted)]">
+              Integrantes: <strong className="text-[var(--app-accent)] font-black">{filteredCollaborators.length}</strong>/{collaborators.length}
             </div>
           </div>
         </div>
 
         {/* Filter and Search Bar */}
-        <div className={cn(
-          "p-2.5 sm:p-3 border-b flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 text-xs transition-colors duration-200",
-          isLight ? "bg-slate-50/70 border-slate-200" : "bg-slate-900/60 border-slate-800/80"
-        )}>
+        <div className="p-2 sm:p-2.5 border-b border-[var(--app-border)] flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 text-xs bg-[var(--app-surface-muted)]">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 flex-wrap">
             <div className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-[var(--app-text-faint)] absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Buscar colaborador ou função..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={cn(
-                  "w-full rounded-xl pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 border",
-                  isLight 
-                    ? "bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" 
-                    : "bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-500"
-                )}
+                className="w-full rounded-xl pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)] border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] placeholder:text-[var(--app-text-faint)]"
               />
             </div>
           </div>
 
           {/* Role Filter Selector */}
           <div className="flex items-center gap-1 shrink-0 justify-between sm:justify-end">
-            <span className={cn("text-[10px] uppercase font-bold sm:hidden", isLight ? "text-slate-500" : "text-slate-400")}>Função:</span>
+            <span className="text-[10px] uppercase font-bold sm:hidden text-[var(--app-text-muted)]">Função:</span>
             <select
               value={selectedRoleFilter}
               onChange={(e) => setSelectedRoleFilter(e.target.value)}
-              className={cn(
-                "border rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-auto cursor-pointer",
-                isLight 
-                  ? "bg-white text-slate-800 border-slate-300" 
-                  : "bg-slate-950 border-slate-800 text-slate-200"
-              )}
+              className="border border-[var(--app-border)] rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)] w-full sm:w-auto cursor-pointer bg-[var(--app-surface)] text-[var(--app-text)]"
             >
               <option value="ALL">Todas as Funções</option>
               {ROLES.map(role => (
@@ -390,17 +344,14 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
 
         {/* Dynamic POB Sparkline Visualizer */}
         {showPobChart && (viewMode === 'timeline' || viewMode === 'grid') && (
-          <div className={cn(
-            "border-b p-2.5 sm:p-3 overflow-x-auto scrollbar-none transition-colors duration-200",
-            isLight ? "bg-white border-slate-200" : "bg-slate-950 border-slate-800"
-          )}>
-            <div className="flex items-center justify-between mb-1.5 text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">
-              <span className={cn("flex items-center gap-1.5 font-bold", isLight ? "text-blue-900" : "text-cyan-300")}>
-                <BarChart2 className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400" />
+          <div className="border-b border-[var(--app-border)] p-2.5 sm:p-3 overflow-x-auto scrollbar-none bg-[var(--app-surface)]">
+            <div className="flex items-center justify-between mb-1.5 text-[10px] uppercase font-extrabold tracking-wider">
+              <span className="flex items-center gap-1.5 font-bold text-[var(--app-accent)]">
+                <BarChart2 className="w-3.5 h-3.5 text-[var(--app-accent)]" />
                 Curva de POB Embarcado Diário
               </span>
-              <span className={cn("font-medium", isLight ? "text-slate-500" : "text-slate-500")}>
-                Pico Máximo: <strong className={isLight ? "text-slate-900" : "text-white"}>{maxPob} Pessoas</strong>
+              <span className="font-medium text-[var(--app-text-muted)]">
+                Pico Máximo: <strong className="text-[var(--app-text)]">{maxPob} Pessoas</strong>
               </span>
             </div>
             <div className="flex items-end gap-[2px] h-10 min-w-max pt-1">
@@ -417,8 +368,8 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                     className={cn(
                       "w-[34px] sm:w-[38px] flex flex-col items-center justify-end h-full cursor-pointer group transition-all rounded-t-xs",
                       isSelected 
-                        ? (isLight ? "bg-blue-100" : "bg-cyan-500/20") 
-                        : (isLight ? "hover:bg-slate-100" : "hover:bg-slate-800/60")
+                        ? "bg-[var(--app-accent-soft)]" 
+                        : "hover:bg-[var(--app-surface-muted)]"
                     )}
                     title={`${format(d.date, 'dd/MM/yyyy')}: POB de ${count} pessoas`}
                   >
@@ -428,9 +379,9 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                         "w-full rounded-t transition-all",
                         count > 0 
                           ? isToday
-                            ? "bg-gradient-to-t from-blue-600 to-cyan-500 shadow-xs"
-                            : "bg-gradient-to-t from-blue-600 to-cyan-400 group-hover:from-blue-500 group-hover:to-cyan-300"
-                          : (isLight ? "bg-slate-200" : "bg-slate-800/40")
+                            ? "bg-[var(--app-accent)] shadow-xs"
+                            : "bg-[var(--app-accent)]/70 group-hover:bg-[var(--app-accent)]"
+                          : "bg-[var(--app-border)]"
                       )}
                     />
                   </div>
@@ -442,20 +393,14 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
 
         {/* View Mode 1: Visão Linha do Tempo Visual (Gantt) & Visão Matriz Limpa */}
         {(viewMode === 'timeline' || viewMode === 'grid') && (
-          <div className={cn("overflow-auto flex-1 relative touch-pan-x touch-pan-y", isLight ? "bg-white" : "bg-slate-950")}>
+          <div className="overflow-auto flex-1 relative touch-pan-x touch-pan-y bg-[var(--app-surface)]">
             {/* Mobile swipe indicator */}
-            <div className={cn(
-              "md:hidden px-3 py-1 border-b text-[10px] font-bold flex items-center justify-between sticky top-0 z-30",
-              isLight ? "bg-slate-100/90 border-slate-200 text-slate-700" : "bg-slate-900/90 border-slate-800 text-slate-300"
-            )}>
-              <span className={cn("flex items-center gap-1.5", isLight ? "text-blue-900" : "text-cyan-300")}>
-                <Sparkles className="w-3 h-3 text-blue-600 dark:text-cyan-400" />
+            <div className="md:hidden px-3 py-1 border-b border-[var(--app-border)] text-[10px] font-bold flex items-center justify-between sticky top-0 z-30 bg-[var(--app-surface-muted)] text-[var(--app-text)]">
+              <span className="flex items-center gap-1.5 text-[var(--app-accent)]">
+                <Sparkles className="w-3 h-3 text-[var(--app-accent)]" />
                 Deslize a linha do tempo ↔
               </span>
-              <span className={cn(
-                "text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded border",
-                isLight ? "bg-white border-slate-200 text-slate-600" : "bg-slate-800 border-slate-700 text-slate-400"
-              )}>
+              <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded border bg-[var(--app-surface)] border-[var(--app-border)] text-[var(--app-text-muted)]">
                 14x14
               </span>
             </div>
@@ -463,28 +408,13 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
             <table className="w-full border-collapse text-xs text-center min-w-max select-none">
               <thead className="sticky top-0 z-30 shadow-xs select-none">
                 {/* Row 0: Month & Year Banner Grouping */}
-                <tr className={cn(
-                  "font-black text-xs tracking-widest uppercase border-b transition-colors duration-200",
-                  isLight 
-                    ? "bg-slate-100 text-blue-900 border-slate-200" 
-                    : "bg-slate-900/95 backdrop-blur-md text-cyan-300 border-slate-800"
-                )}>
-                  <th colSpan={1} className={cn(
-                    "sticky left-0 z-40 px-3 py-2 text-left border-r w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate md:hidden",
-                    isLight 
-                      ? "bg-slate-100 text-blue-900 border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" 
-                      : "bg-slate-900 text-cyan-300 border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.6)]"
-                  )}>
+                <tr className="font-black text-xs tracking-widest uppercase border-b border-[var(--app-border)] bg-[var(--app-surface-muted)] text-[var(--app-accent)]">
+                  <th colSpan={1} className="sticky left-0 z-40 px-3 py-2 text-left border-r border-[var(--app-border)] w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate md:hidden bg-[var(--app-surface-muted)] text-[var(--app-accent)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                     EQUIPE
                   </th>
-                  <th colSpan={3} className={cn(
-                    "hidden md:table-cell sticky left-0 z-40 px-4 py-2 text-left border-r w-[400px] min-w-[400px]",
-                    isLight 
-                      ? "bg-slate-100 text-blue-900 border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" 
-                      : "bg-slate-900 text-cyan-300 border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.6)]"
-                  )}>
+                  <th colSpan={3} className="hidden md:table-cell sticky left-0 z-40 px-4 py-2 text-left border-r border-[var(--app-border)] w-[400px] min-w-[400px] bg-[var(--app-surface-muted)] text-[var(--app-accent)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-cyan-400" />
+                      <ShieldCheck className="w-4 h-4 text-[var(--app-accent)]" />
                       <span>PERÍODO & OPERAÇÃO</span>
                     </div>
                   </th>
@@ -492,12 +422,7 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                     <th 
                       key={idx} 
                       colSpan={mg.count} 
-                      className={cn(
-                        "border-r px-3 py-2 text-center font-black tracking-widest text-xs",
-                        isLight
-                          ? "bg-gradient-to-r from-blue-50 via-slate-100 to-blue-50 text-blue-900 border-slate-200"
-                          : "bg-gradient-to-r from-slate-900 via-blue-950/60 to-slate-900 text-cyan-200 border-slate-800/80"
-                      )}
+                      className="border-r border-[var(--app-border)] px-3 py-2 text-center font-black tracking-widest text-xs bg-[var(--app-surface-muted)] text-[var(--app-text)]"
                     >
                       {mg.monthLabel}
                     </th>
@@ -505,33 +430,18 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                 </tr>
 
                 {/* Row 1: Date formatted like 8-Aug */}
-                <tr className={cn(
-                  "border-b font-bold transition-colors duration-200",
-                  isLight ? "bg-slate-50 text-slate-800 border-slate-200" : "bg-slate-900/90 text-slate-200 border-slate-800"
-                )}>
-                  <th className={cn(
-                    "md:hidden sticky left-0 z-40 border-r border-b px-3 py-1.5 w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate text-left uppercase text-[9px] font-black",
-                    isLight ? "bg-slate-50 border-slate-200 text-slate-700 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-900 border-slate-800 text-slate-300 shadow-[4px_0_15px_rgba(0,0,0,0.6)]"
-                  )}>
+                <tr className="border-b border-[var(--app-border)] font-bold bg-[var(--app-surface-muted)] text-[var(--app-text)]">
+                  <th className="md:hidden sticky left-0 z-40 border-r border-b border-[var(--app-border)] px-3 py-1.5 w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate text-left uppercase text-[9px] font-black bg-[var(--app-surface-muted)] text-[var(--app-text-muted)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                     COLABORADOR
                   </th>
 
-                  <th className={cn(
-                    "hidden md:table-cell sticky left-0 z-40 border-r border-b px-3 py-1.5 w-48 min-w-[192px] max-w-[192px] text-left uppercase text-xs font-extrabold",
-                    isLight ? "bg-slate-50 border-slate-200 text-slate-800 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-900 border-slate-800 text-slate-300 shadow-[4px_0_15px_rgba(0,0,0,0.6)]"
-                  )}>
+                  <th className="hidden md:table-cell sticky left-0 z-40 border-r border-b border-[var(--app-border)] px-3 py-1.5 w-48 min-w-[192px] max-w-[192px] text-left uppercase text-xs font-extrabold bg-[var(--app-surface-muted)] text-[var(--app-text)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                     NOME
                   </th>
-                  <th className={cn(
-                    "hidden md:table-cell sticky left-48 z-40 border-r border-b px-2 py-1.5 w-36 min-w-[144px] max-w-[144px] text-left uppercase text-xs font-extrabold",
-                    isLight ? "bg-slate-50 border-slate-200 text-slate-800 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-900 border-slate-800 text-slate-300 shadow-[4px_0_15px_rgba(0,0,0,0.6)]"
-                  )}>
+                  <th className="hidden md:table-cell sticky left-48 z-40 border-r border-b border-[var(--app-border)] px-2 py-1.5 w-36 min-w-[144px] max-w-[144px] text-left uppercase text-xs font-extrabold bg-[var(--app-surface-muted)] text-[var(--app-text)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                     FUNÇÃO
                   </th>
-                  <th className={cn(
-                    "hidden md:table-cell sticky left-84 z-40 border-r border-b px-2 py-1.5 w-16 min-w-[64px] max-w-[64px] text-center uppercase text-xs font-extrabold",
-                    isLight ? "bg-slate-50 border-slate-200 text-slate-800 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-900 border-slate-800 text-slate-300 shadow-[4px_0_15px_rgba(0,0,0,0.6)]"
-                  )}>
+                  <th className="hidden md:table-cell sticky left-84 z-40 border-r border-b border-[var(--app-border)] px-2 py-1.5 w-16 min-w-[64px] max-w-[64px] text-center uppercase text-xs font-extrabold bg-[var(--app-surface-muted)] text-[var(--app-text)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                     TURMA
                   </th>
 
@@ -542,11 +452,10 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                       <th 
                         key={d.dateStr} 
                         className={cn(
-                          "px-1 py-1 font-extrabold text-[11px] min-w-[42px] border-r",
-                          isLight ? "border-slate-200" : "border-slate-800/40",
+                          "px-1 py-1 font-extrabold text-[11px] min-w-[42px] border-r border-[var(--app-border)]",
                           isToday 
-                            ? (isLight ? "bg-blue-100 text-blue-900 font-black" : "bg-cyan-500/20 text-cyan-300 font-black") 
-                            : (isLight ? "text-slate-700" : "text-slate-300")
+                            ? "bg-[var(--app-accent-soft)] text-[var(--app-accent)] font-black" 
+                            : "text-[var(--app-text-muted)]"
                         )}
                       >
                         {format(d.date, 'd-MMM', { locale: ptBR })}
@@ -557,11 +466,11 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
 
 
                 {/* Row 2: Day of Week */}
-                <tr className={cn("border-b font-medium", isLight ? "bg-white text-slate-500 border-slate-200" : "bg-slate-950 text-slate-400 border-slate-800")}>
-                  <th className={cn("sticky left-0 z-40 border-r border-b md:hidden w-32 min-w-[128px] max-w-[128px]", isLight ? "bg-white border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-950 border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.6)]")}></th>
-                  <th className={cn("hidden md:table-cell sticky left-0 z-40 border-r border-b w-48 min-w-[192px] max-w-[192px]", isLight ? "bg-white border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-950 border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.6)]")}></th>
-                  <th className={cn("hidden md:table-cell sticky left-48 z-40 border-r border-b w-36 min-w-[144px] max-w-[144px]", isLight ? "bg-white border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-950 border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.6)]")}></th>
-                  <th className={cn("hidden md:table-cell sticky left-84 z-40 border-r border-b w-16 min-w-[64px] max-w-[64px]", isLight ? "bg-white border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-950 border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.6)]")}></th>
+                <tr className="border-b border-[var(--app-border)] font-medium bg-[var(--app-surface)] text-[var(--app-text-muted)]">
+                  <th className="sticky left-0 z-40 border-r border-b border-[var(--app-border)] md:hidden w-32 min-w-[128px] max-w-[128px] bg-[var(--app-surface)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]"></th>
+                  <th className="hidden md:table-cell sticky left-0 z-40 border-r border-b border-[var(--app-border)] w-48 min-w-[192px] max-w-[192px] bg-[var(--app-surface)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]"></th>
+                  <th className="hidden md:table-cell sticky left-48 z-40 border-r border-b border-[var(--app-border)] w-36 min-w-[144px] max-w-[144px] bg-[var(--app-surface)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]"></th>
+                  <th className="hidden md:table-cell sticky left-84 z-40 border-r border-b border-[var(--app-border)] w-16 min-w-[64px] max-w-[64px] bg-[var(--app-surface)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]"></th>
                   {daysInfo.map((d) => {
                     const dayName = format(d.date, 'EEEE', { locale: ptBR });
                     const isWeekend = d.date.getDay() === 0 || d.date.getDay() === 6;
@@ -569,11 +478,10 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                       <th 
                         key={d.dateStr} 
                         className={cn(
-                          "px-0.5 py-1 text-[10px] uppercase font-bold truncate max-w-[40px] border-r",
-                          isLight ? "border-slate-200" : "border-slate-800/40",
+                          "px-0.5 py-1 text-[10px] uppercase font-bold truncate max-w-[40px] border-r border-[var(--app-border)]",
                           isWeekend 
-                            ? (isLight ? "bg-blue-50 text-blue-800 font-black" : "bg-blue-500/10 text-cyan-300 font-black") 
-                            : (isLight ? "text-slate-400" : "text-slate-500")
+                            ? "bg-[var(--app-accent-soft)] text-[var(--app-accent)] font-black" 
+                            : "text-[var(--app-text-faint)]"
                         )}
                         title={dayName}
                       >
@@ -584,18 +492,18 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                 </tr>
 
                 {/* Row 3: Week Number Banner Grouping */}
-                <tr className={cn("border-b text-[10px] font-black tracking-wider uppercase", isLight ? "bg-slate-100 text-slate-700 border-slate-200" : "bg-slate-900/80 text-slate-300 border-slate-800")}>
-                  <th colSpan={1} className={cn("md:hidden sticky left-0 z-40 border-r px-2 py-1 text-left w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate", isLight ? "bg-slate-100 text-blue-900 border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-900 text-cyan-300 border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.6)]")}>
+                <tr className="border-b border-[var(--app-border)] text-[10px] font-black tracking-wider uppercase bg-[var(--app-surface-muted)] text-[var(--app-text-muted)]">
+                  <th colSpan={1} className="md:hidden sticky left-0 z-40 border-r border-[var(--app-border)] px-2 py-1 text-left w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate bg-[var(--app-surface-muted)] text-[var(--app-accent)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                     CRONO
                   </th>
-                  <th colSpan={3} className={cn("hidden md:table-cell sticky left-0 z-40 border-r px-3 py-1 text-left w-[400px] min-w-[400px]", isLight ? "bg-slate-100 text-blue-900 border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-900 text-cyan-300 border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.6)]")}>
+                  <th colSpan={3} className="hidden md:table-cell sticky left-0 z-40 border-r border-[var(--app-border)] px-3 py-1 text-left w-[400px] min-w-[400px] bg-[var(--app-surface-muted)] text-[var(--app-accent)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                     ROTAÇÃO 14x14
                   </th>
                   {weekGroups.map((wg, idx) => (
                     <th 
                       key={idx} 
                       colSpan={wg.count} 
-                      className={cn("border-r px-1 py-1 font-bold", isLight ? "bg-slate-100 text-slate-700 border-slate-200" : "bg-slate-900 text-slate-300 border-slate-800/80")}
+                      className="border-r border-[var(--app-border)] px-1 py-1 font-bold bg-[var(--app-surface-muted)] text-[var(--app-text-muted)]"
                     >
                       SEM {wg.weekNum}
                     </th>
@@ -603,10 +511,10 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                 </tr>
               </thead>
 
-              <tbody className={cn("divide-y transition-colors duration-200", isLight ? "bg-white divide-slate-200" : "bg-slate-950 divide-slate-800/40")}>
+              <tbody className="divide-y divide-[var(--app-border)] bg-[var(--app-surface)]">
                 {filteredCollaborators.length === 0 ? (
                   <tr>
-                    <td colSpan={4 + daysInfo.length} className="py-12 text-center text-slate-500 font-medium">
+                    <td colSpan={4 + daysInfo.length} className="py-12 text-center text-[var(--app-text-muted)] font-medium">
                       Nenhum colaborador corresponde aos filtros selecionados.
                     </td>
                   </tr>
@@ -625,45 +533,40 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                     return (
                       <Fragment key={colab.id}>
                         {isNewRole && (
-                          <tr key={`role-group-${colab.role}`} className={cn("border-t-2 border-b font-bold", isLight ? "bg-slate-100/90 text-slate-900 border-slate-200" : "bg-slate-900/90 text-slate-200 border-slate-800/80")}>
-                            <td className={cn("md:hidden sticky left-0 z-20 px-2 py-2 text-left font-black tracking-wider uppercase text-[11px] w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate", isLight ? "bg-slate-100 text-blue-900 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-900 text-cyan-400 shadow-[4px_0_15px_rgba(0,0,0,0.6)]")}>
+                          <tr key={`role-group-${colab.role}`} className="border-t-2 border-b border-[var(--app-border)] font-bold bg-[var(--app-surface-muted)] text-[var(--app-text)]">
+                            <td className="md:hidden sticky left-0 z-20 px-2 py-2 text-left font-black tracking-wider uppercase text-[11px] w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate bg-[var(--app-surface-muted)] text-[var(--app-accent)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                               <div className="flex items-center gap-1.5 truncate">
-                                <span className={cn("w-2 h-2 rounded-full shrink-0", isLight ? "bg-blue-600" : "bg-cyan-400")}></span>
+                                <span className="w-2 h-2 rounded-full shrink-0 bg-[var(--app-accent)]"></span>
                                 <span className="font-extrabold truncate">{colab.role}</span>
                               </div>
                             </td>
-                            <td colSpan={daysInfo.length} className={cn("md:hidden px-2 py-2 text-left text-[11px] font-medium", isLight ? "bg-slate-100 text-slate-500" : "bg-slate-900 text-slate-400")}>
+                            <td colSpan={daysInfo.length} className="md:hidden px-2 py-2 text-left text-[11px] font-medium bg-[var(--app-surface-muted)] text-[var(--app-text-muted)]">
                               (Equipe Ativa)
                             </td>
 
-                            <td colSpan={3} className={cn("hidden md:table-cell sticky left-0 z-20 px-4 py-2 text-left font-black tracking-wider uppercase text-xs w-[400px] min-w-[400px]", isLight ? "bg-slate-100 text-slate-900 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" : "bg-slate-900 text-cyan-300 shadow-[4px_0_15px_rgba(0,0,0,0.6)]")}>
+                            <td colSpan={3} className="hidden md:table-cell sticky left-0 z-20 px-4 py-2 text-left font-black tracking-wider uppercase text-xs w-[400px] min-w-[400px] bg-[var(--app-surface-muted)] text-[var(--app-text)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                               <div className="flex items-center gap-2">
-                                <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", isLight ? "bg-blue-600" : "bg-cyan-400")}></span>
-                                <span className={cn("font-black", isLight ? "text-slate-900" : "text-white")}>{colab.role}</span>
-                                <span className={cn("text-[11px] normal-case font-medium ml-2 px-2 py-0.5 rounded-full border", isLight ? "bg-white text-slate-600 border-slate-300" : "bg-slate-800 text-slate-400 border-slate-700")}>
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-[var(--app-accent)]"></span>
+                                <span className="font-black text-[var(--app-text)]">{colab.role}</span>
+                                <span className="text-[11px] normal-case font-medium ml-2 px-2 py-0.5 rounded-full border bg-[var(--app-surface)] text-[var(--app-text-muted)] border-[var(--app-border)]">
                                   Escalas Opostas
                                 </span>
                               </div>
                             </td>
-                            <td colSpan={daysInfo.length} className={cn("hidden md:table-cell px-4 py-2 text-left text-xs font-medium", isLight ? "bg-slate-100 text-slate-500" : "bg-slate-900 text-slate-400")}>
+                            <td colSpan={daysInfo.length} className="hidden md:table-cell px-4 py-2 text-left text-xs font-medium bg-[var(--app-surface-muted)] text-[var(--app-text-muted)]">
                               (Linha do Tempo Visual de Embarque)
                             </td>
                           </tr>
                         )}
-                        <tr key={colab.id} className={cn("transition-all group", isLight ? "hover:bg-slate-50/80" : "hover:bg-slate-900/80")}>
+                        <tr key={colab.id} className="transition-all group hover:bg-[var(--app-surface-muted)]">
                           {/* Mobile Single Combined Fixed Column */}
                           <td
-                            className={cn(
-                              "md:hidden sticky left-0 border-r px-2 py-2 w-32 min-w-[128px] max-w-[128px] overflow-hidden text-left z-20 font-bold cursor-pointer transition-colors",
-                              isLight 
-                                ? "bg-white group-hover:bg-slate-50 border-slate-200 text-slate-900 shadow-[2px_0_8px_rgba(0,0,0,0.04)] hover:text-blue-700" 
-                                : "bg-slate-950 group-hover:bg-slate-900 border-slate-800/80 text-slate-100 shadow-[4px_0_15px_rgba(0,0,0,0.6)] hover:text-cyan-300"
-                            )}
+                            className="md:hidden sticky left-0 border-r border-[var(--app-border)] px-2 py-2 w-32 min-w-[128px] max-w-[128px] overflow-hidden text-left z-20 font-bold cursor-pointer transition-colors bg-[var(--app-surface)] group-hover:bg-[var(--app-surface-muted)] text-[var(--app-text)] shadow-[2px_0_8px_rgba(0,0,0,0.04)] hover:text-[var(--app-accent)]"
                             title={`Clique para editar ${colab.name}`}
                             onClick={() => setEditingCollaborator(colab)}
                           >
                             <div className="flex items-center gap-1.5">
-                              <div className={cn("w-6 h-6 rounded-full font-black text-[9px] flex items-center justify-center shrink-0 border", isLight ? "bg-blue-100 text-blue-800 border-blue-200" : "bg-slate-800 text-cyan-300 border-slate-700")}>
+                              <div className="w-6 h-6 rounded-full font-black text-[9px] flex items-center justify-center shrink-0 border bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)]">
                                 {getInitials(colab.name)}
                               </div>
                               <div className="min-w-0 flex-1">
@@ -682,40 +585,25 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
 
                           {/* Desktop 3 Fixed Columns */}
                           <td 
-                            className={cn(
-                              "hidden md:table-cell sticky left-0 border-r px-3 py-2.5 w-48 min-w-[192px] max-w-[192px] text-left z-20 font-bold truncate cursor-pointer transition-colors",
-                              isLight 
-                                ? "bg-white group-hover:bg-slate-50 border-slate-200 text-slate-900 shadow-[2px_0_8px_rgba(0,0,0,0.04)] hover:text-blue-700" 
-                                : "bg-slate-950 group-hover:bg-slate-900 border-slate-800/80 text-slate-100 shadow-[4px_0_15px_rgba(0,0,0,0.6)] hover:text-cyan-300"
-                            )}
+                            className="hidden md:table-cell sticky left-0 border-r border-[var(--app-border)] px-3 py-2.5 w-48 min-w-[192px] max-w-[192px] text-left z-20 font-bold truncate cursor-pointer transition-colors bg-[var(--app-surface)] group-hover:bg-[var(--app-surface-muted)] text-[var(--app-text)] shadow-[2px_0_8px_rgba(0,0,0,0.04)] hover:text-[var(--app-accent)]"
                             title={`Clique para editar ${colab.name}`}
                             onClick={() => setEditingCollaborator(colab)}
                           >
                             <div className="flex items-center justify-between gap-2 overflow-hidden">
                               <div className="flex items-center gap-2 min-w-0">
-                                <div className={cn("w-7 h-7 rounded-full font-black text-[10px] flex items-center justify-center shrink-0 border shadow-xs", isLight ? "bg-blue-100 text-blue-900 border-blue-200" : "bg-gradient-to-br from-slate-800 to-slate-900 text-cyan-300 border-slate-700")}>
+                                <div className="w-7 h-7 rounded-full font-black text-[10px] flex items-center justify-center shrink-0 border shadow-xs bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)]">
                                   {getInitials(colab.name)}
                                 </div>
-                                <span className={cn("truncate text-xs font-bold", isLight ? "text-slate-900" : "text-slate-100")}>{colab.name}</span>
+                                <span className="truncate text-xs font-bold text-[var(--app-text)]">{colab.name}</span>
                               </div>
-                              <Edit3 className={cn("w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity", isLight ? "text-slate-400 group-hover:text-blue-700" : "text-slate-500 group-hover:text-cyan-300")} />
+                              <Edit3 className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--app-text-faint)] group-hover:text-[var(--app-accent)]" />
                             </div>
                           </td>
 
-                          <td className={cn(
-                            "hidden md:table-cell sticky left-48 border-r px-3 py-2.5 w-36 min-w-[144px] max-w-[144px] text-left z-20 text-xs font-medium truncate",
-                            isLight 
-                              ? "bg-white group-hover:bg-slate-50 border-slate-200 text-slate-600 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" 
-                              : "bg-slate-950 group-hover:bg-slate-900 border-slate-800/80 text-slate-400 shadow-[4px_0_15px_rgba(0,0,0,0.6)]"
-                          )} title={colab.role}>
+                          <td className="hidden md:table-cell sticky left-48 border-r border-[var(--app-border)] px-3 py-2.5 w-36 min-w-[144px] max-w-[144px] text-left z-20 text-xs font-medium truncate bg-[var(--app-surface)] group-hover:bg-[var(--app-surface-muted)] text-[var(--app-text-muted)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]" title={colab.role}>
                             {colab.role}
                           </td>
-                          <td className={cn(
-                            "hidden md:table-cell sticky left-84 border-r px-1 py-1.5 w-16 min-w-[64px] max-w-[64px] text-center z-20",
-                            isLight 
-                              ? "bg-white group-hover:bg-slate-50 border-slate-200 shadow-[2px_0_8px_rgba(0,0,0,0.04)]" 
-                              : "bg-slate-950 group-hover:bg-slate-900 border-slate-800/80 shadow-[4px_0_15px_rgba(0,0,0,0.6)]"
-                          )}>
+                          <td className="hidden md:table-cell sticky left-84 border-r border-[var(--app-border)] px-1 py-1.5 w-16 min-w-[64px] max-w-[64px] text-center z-20 bg-[var(--app-surface)] group-hover:bg-[var(--app-surface-muted)] shadow-[2px_0_8px_rgba(0,0,0,0.04)]">
                             <div className="flex flex-col items-center gap-0.5">
                               <span className={cn("px-1.5 py-0.5 rounded-md border text-[10px] font-black leading-none", turmaStyle.bg, turmaStyle.text, turmaStyle.border)}>
                                 T-{turmaLetter}
@@ -760,12 +648,12 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                             return (
                               <td 
                                 key={d.dateStr} 
-                                className="p-[1px] relative cursor-pointer select-none transition-all hover:z-30 hover:scale-105"
+                                className="p-[1px] relative cursor-pointer select-none transition-all hover:z-30"
                                 onClick={() => setSelectedCell({ cell, collaboratorName: colab.name })}
                                 title={`${colab.name} - ${format(d.date, 'dd/MM/yyyy')}: ${cell.status}${cell.event?.motive ? ` (${cell.event.motive})` : ''}`}
                               >
                                 <div className={cn(
-                                  "w-full h-8 flex items-center justify-center transition-all text-xs font-black relative overflow-hidden",
+                                  "w-full h-10 min-h-10 flex items-center justify-center transition-all text-xs font-black relative overflow-hidden",
                                   capClass,
                                   style?.bg
                                 )}>
@@ -788,24 +676,19 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
               </tbody>
 
               {/* Subtotal Row - Total da equipe embarcada */}
-              <tfoot className={cn(
-                "sticky bottom-0 z-30 font-black border-t-2 shadow-xs transition-colors duration-200",
-                isLight 
-                  ? "bg-gradient-to-r from-blue-600 via-blue-700 to-blue-600 text-white border-blue-400" 
-                  : "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white border-cyan-400/50 shadow-[0_-10px_25px_rgba(6,182,212,0.3)]"
-              )}>
+              <tfoot className="sticky bottom-0 z-30 font-black border-t-2 border-[var(--app-accent)] shadow-xs bg-[var(--app-header)] text-[var(--app-header-text)]">
                 <tr>
-                  <td colSpan={1} className="md:hidden sticky left-0 bg-blue-600 border-r border-blue-700 px-3 py-2.5 font-black text-left z-40 text-[11px] uppercase tracking-tight shadow-md w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate text-white">
+                  <td colSpan={1} className="md:hidden sticky left-0 bg-[var(--app-header)] border-r border-[var(--app-border-strong)] px-3 py-2.5 font-black text-left z-40 text-[11px] uppercase tracking-tight shadow-md w-32 min-w-[128px] max-w-[128px] overflow-hidden truncate text-[var(--app-header-text)]">
                     POB DIA
                   </td>
-                  <td colSpan={3} className="hidden md:table-cell sticky left-0 bg-blue-600 border-r border-blue-700 px-4 py-2.5 font-black text-left z-40 text-xs tracking-wider shadow-md uppercase w-[400px] min-w-[400px] max-w-[400px] truncate text-white">
+                  <td colSpan={3} className="hidden md:table-cell sticky left-0 bg-[var(--app-header)] border-r border-[var(--app-border-strong)] px-4 py-2.5 font-black text-left z-40 text-xs tracking-wider shadow-md uppercase w-[400px] min-w-[400px] max-w-[400px] truncate text-[var(--app-header-text)]">
                     <div className="flex items-center gap-2">
-                      <Anchor className="w-4 h-4 text-cyan-300" />
+                      <Anchor className="w-4 h-4 text-[var(--app-accent)]" />
                       <span>POB TOTAL EMBARCADO DIÁRIO</span>
                     </div>
                   </td>
                   {daysInfo.map(d => (
-                    <td key={d.dateStr} className="px-1 py-2.5 font-black text-xs sm:text-sm text-white">
+                    <td key={d.dateStr} className="px-1 py-2.5 font-black text-xs sm:text-sm text-[var(--app-header-text)]">
                       {pobCounts[d.dateStr]}
                     </td>
                   ))}
@@ -1106,15 +989,15 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
             </div>
 
             {/* POB Summary Banner for Selected Day */}
-            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white p-4 rounded-xl shadow-md flex items-center justify-between border border-blue-400">
+            <div className="bg-[var(--app-header)] text-[var(--app-header-text)] p-4 rounded-xl shadow-md flex items-center justify-between border border-[var(--app-accent)]">
               <div>
-                <div className="text-[10px] uppercase font-black tracking-widest text-blue-100">POB TOTAL EMBARCADO (OFFSHORE)</div>
-                <div className="text-sm sm:text-base font-black mt-0.5 text-white capitalize">
+                <div className="text-[10px] uppercase font-black tracking-widest text-[var(--app-accent)]">POB TOTAL EMBARCADO (OFFSHORE)</div>
+                <div className="text-sm sm:text-base font-black mt-0.5 text-[var(--app-header-text)] capitalize">
                   {format(new Date(selectedDailyDateStr + 'T12:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                 </div>
               </div>
-              <div className={cn("px-4 py-2 rounded-xl text-xl font-black border shadow-xs", isLight ? "bg-white text-blue-900 border-blue-200" : "bg-slate-950 text-cyan-300 border-slate-800")}>
-                {pobCounts[selectedDailyDateStr] ?? 0} <span className={cn("text-[10px] font-bold uppercase", isLight ? "text-slate-500" : "text-slate-300")}>Pessoas</span>
+              <div className="px-4 py-2 rounded-xl text-xl font-black border shadow-xs bg-[var(--app-surface)] text-[var(--app-accent)] border-[var(--app-border)]">
+                {pobCounts[selectedDailyDateStr] ?? 0} <span className="text-[10px] font-bold uppercase text-[var(--app-text-muted)]">Pessoas</span>
               </div>
             </div>
 

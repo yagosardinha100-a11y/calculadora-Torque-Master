@@ -71,11 +71,19 @@ export default function VacationPage() {
   };
 
   const handleConfirmPlan = async (planId: string) => {
-    await confirmVacationPlan(planId);
+    try {
+      await confirmVacationPlan(planId);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Falha ao confirmar férias.');
+    }
   };
 
   const handleUnconfirmPlan = async (planId: string) => {
-    await unconfirmVacationPlan(planId);
+    try {
+      await unconfirmVacationPlan(planId);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Falha ao desfazer lançamento.');
+    }
   };
 
   const handleDeletePlan = async (planId: string) => {

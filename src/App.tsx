@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import SchedulePage from './pages/SchedulePage';
 import VacationPage from './pages/VacationPage';
@@ -6,6 +6,7 @@ import CollaboratorsPage from './pages/CollaboratorsPage';
 import DobrasPage from './pages/DobrasPage';
 import TreinamentosPage from './pages/TreinamentosPage';
 import RelatoriosPage from './pages/RelatoriosPage';
+import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ThemeProvider } from './context/ThemeContext';
@@ -29,7 +30,7 @@ export default function App() {
                   <Route path="dobras" element={<DobrasPage />} />
                   <Route path="treinamentos" element={<TreinamentosPage />} />
                   <Route path="relatorios" element={<RelatoriosPage />} />
-                  <Route path="configuracoes" element={<Navigate to="/colaboradores" replace />} />
+                  <Route path="configuracoes" element={<SettingsPage />} />
                 </Route>
               </Route>
             </Routes>

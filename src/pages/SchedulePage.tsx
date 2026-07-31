@@ -8,16 +8,19 @@ import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
 import { cn } from '../lib/utils';
 import { ScheduleSkeleton } from '../components/ui/Skeleton';
+import { StatusChip } from '../components/ui/StatusChip';
+import type { Status } from '../types';
 
-const STATUS_LEGEND = [
-  { key: 'escala', label: 'Escala', sample: '1', color: 'var(--status-escala)' },
-  { key: 'dobra', label: 'Dobra', sample: '1', color: 'var(--status-dobra)' },
-  { key: 'ferias', label: 'Férias', sample: 'FÉR', color: 'var(--status-ferias)' },
-  { key: 'exame', label: 'Atestado / Exame', sample: 'ATE', color: 'var(--status-exame)' },
-  { key: 'treino', label: 'Treinamento', sample: 'TRE', color: 'var(--status-treinamento)' },
-  { key: 'noshow', label: 'No Show', sample: '1', color: 'var(--status-noshow)' },
-  { key: 'folga', label: 'Folga', sample: '·', color: 'var(--status-folga)' },
-] as const;
+const STATUS_LEGEND: Status[] = [
+  'Escala',
+  'Dobra',
+  'Férias',
+  'Exame Médico',
+  'Treinamento',
+  'No Show',
+  'Folga',
+];
+
 
 export default function SchedulePage() {
   const { isLight } = useTheme();
@@ -69,7 +72,7 @@ export default function SchedulePage() {
             <span className="shrink-0 px-2 text-[10px] font-semibold tracking-wide text-[var(--app-text-faint)] uppercase">
               Visão
             </span>
-            {[1, 3, 6, 12, 18, 24].map((count) => (
+            {[1, 3, 6, 12].map((count) => (
               <button
                 key={count}
                 type="button"
@@ -170,19 +173,8 @@ export default function SchedulePage() {
             <Info className="size-3.5 text-[var(--app-accent)]" />
             Legenda
           </span>
-          {STATUS_LEGEND.map((item) => (
-            <div
-              key={item.key}
-              className="flex shrink-0 items-center gap-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-2.5 py-1"
-            >
-              <div
-                className="flex h-5 min-w-6 items-center justify-center rounded-md px-1 text-[9px] font-bold text-white"
-                style={{ background: item.color }}
-              >
-                {item.sample}
-              </div>
-              <span className="text-[12px] font-medium text-[var(--app-text)]">{item.label}</span>
-            </div>
+          {STATUS_LEGEND.map((status) => (
+            <StatusChip key={status} status={status} />
           ))}
         </div>
       </div>
