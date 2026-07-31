@@ -1,90 +1,152 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { Sun, Moon, LogOut, User } from 'lucide-react';
-import { useAuth } from '../data/AuthProvider';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import {
+  CalendarDays,
+  Users,
+  Palmtree,
+  Sparkles,
+  GraduationCap,
+  BarChart3,
+  Settings2,
+  Sun,
+  Moon,
+  LogOut,
+  Anchor,
+} from 'lucide-react';
+import { cn } from '../lib/utils';
 import { useTheme } from '../data/ThemeProvider';
+import { useAuth } from '../data/AuthProvider';
 
-const NAV_LINKS = [
-  { to: '/',              label: 'Escalas',       end: true },
-  { to: '/colaboradores', label: 'Colaboradores',  end: false },
-  { to: '/ferias',        label: 'Férias',         end: false },
-  { to: '/dobras',        label: 'Dobras',         end: false },
-  { to: '/treinamentos',  label: 'Treinamentos',   end: false },
-  { to: '/relatorios',    label: 'Relatórios',     end: false },
-  { to: '/configuracoes', label: 'Turmas',         end: false },
+const NAV = [
+  { name: 'Escalas', path: '/', icon: CalendarDays },
+  { name: 'Colaboradores', path: '/colaboradores', icon: Users },
+  { name: 'Férias', path: '/ferias', icon: Palmtree },
+  { name: 'Dobras', path: '/dobras', icon: Sparkles },
+  { name: 'Treinamentos', path: '/treinamentos', icon: GraduationCap },
+  { name: 'Relatórios', path: '/relatorios', icon: BarChart3 },
+  { name: 'Turmas', path: '/configuracoes', icon: Settings2 },
 ];
 
 export default function Layout() {
+  const { toggleTheme, isLight } = useTheme();
   const { user, logout } = useAuth();
-  const { isLight, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
-    <div className="flex h-full flex-col" style={{ background: 'var(--app-bg)' }}>
-      {/* Header */}
+    <div className="flex h-screen w-full flex-col overflow-hidden text-[var(--app-text)]">
       <header
-        className="flex shrink-0 items-center gap-4 px-4 h-12"
+        className="z-20 flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4 sm:px-5"
         style={{ background: 'var(--app-header)', color: 'var(--app-header-text)' }}
       >
-        {/* Brand */}
-        <span className="font-display text-sm font-semibold tracking-tight whitespace-nowrap">
-          Escala Offshore
-        </span>
+        <div className="flex min-w-0 items-center gap-5">
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-[var(--app-nav-active)] text-white">
+              <Anchor className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-display text-[15px] font-semibold tracking-tight text-white">
+                Escala Offshore
+              </p>
+              <p className="hidden text-[11px] text-white/55 sm:block">Embarques 14×14</p>
+            </div>
+          </div>
 
-        {/* Nav — horizontal scroll on mobile */}
-        <nav className="flex-1 overflow-x-auto scrollbar-none">
-          <ul className="flex items-center gap-0.5 min-w-max">
-            {NAV_LINKS.map(({ to, label, end }) => (
-              <li key={to}>
+          <nav className="hidden items-center gap-1 overflow-x-auto py-1 md:flex" aria-label="Menu principal">
+            {NAV.map((item) => {
+              const Icon = item.icon;
+              return (
                 <NavLink
-                  to={to}
-                  end={end}
+                  key={item.path}
+                  to={item.path}
+                  end={item.path === '/'}
                   className={({ isActive }) =>
-                    `px-3 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                    cn(
+                      'flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors',
                       isActive
-                        ? 'text-white'
-                        : 'opacity-70 hover:opacity-100 hover:text-white'
-                    }`
-                  }
-                  style={({ isActive }) =>
-                    isActive ? { background: 'var(--app-nav-active)' } : {}
+                        ? 'bg-[var(--app-nav-active)] text-white'
+                        : 'text-white/70 hover:bg-white/8 hover:text-white',
+                    )
                   }
                 >
-                  {label}
+                  <Icon className="size-4 shrink-0 opacity-90" />
+                  <span>{item.name}</span>
                 </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
+              );
+            })}
+          </nav>
+        </div>
 
-        {/* Right side */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
+            type="button"
             onClick={toggleTheme}
-            className="p-1.5 rounded opacity-70 hover:opacity-100 transition-opacity"
-            title={isLight ? 'Modo escuro' : 'Modo claro'}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[12px] font-semibold text-white/80 transition-colors hover:bg-white/10"
+            title={isLight ? 'Tema escuro' : 'Tema claro'}
           >
-            {isLight ? <Moon size={15} /> : <Sun size={15} />}
+            {isLight ? <Moon className="size-3.5" /> : <Sun className="size-3.5 text-amber-300" />}
+            <span className="hidden sm:inline">{isLight ? 'Escuro' : 'Claro'}</span>
           </button>
 
-          {user?.avatar ? (
-            <img src={user.avatar} alt={user.name} className="h-6 w-6 rounded-full" />
-          ) : (
-            <User size={15} className="opacity-70" />
-          )}
-
-          <span className="text-xs opacity-80 hidden sm:inline max-w-[120px] truncate">{user?.name}</span>
+          <div className="hidden items-center gap-2 border-l border-white/15 pl-3 sm:flex">
+            <div className="text-right">
+              <p className="text-[12px] font-semibold text-white">{user?.name || 'Usuário'}</p>
+              <p className="text-[11px] text-white/50">{user?.username || 'Conectado'}</p>
+            </div>
+            <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-[var(--app-nav-active)] text-[12px] font-bold text-white">
+              {user?.avatar ? (
+                <img src={user.avatar} alt="" className="size-full object-cover" />
+              ) : user?.name ? (
+                user.name.charAt(0).toUpperCase()
+              ) : (
+                'U'
+              )}
+            </div>
+          </div>
 
           <button
-            onClick={logout}
-            className="p-1.5 rounded opacity-70 hover:opacity-100 transition-opacity"
+            type="button"
+            onClick={handleLogout}
+            className="flex cursor-pointer items-center gap-1 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[12px] font-semibold text-white/80 transition-colors hover:border-rose-400/40 hover:bg-rose-500/15 hover:text-rose-200"
             title="Sair"
           >
-            <LogOut size={15} />
+            <LogOut className="size-3.5" />
+            <span className="hidden xl:inline">Sair</span>
           </button>
         </div>
       </header>
 
-      {/* Page content */}
-      <main className="flex-1 overflow-hidden">
+      <div
+        className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--app-border)] px-3 py-2 md:hidden"
+        style={{ background: 'var(--app-surface)' }}
+      >
+        {NAV.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === '/'}
+              className={({ isActive }) =>
+                cn(
+                  'flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-colors',
+                  isActive
+                    ? 'bg-[var(--app-accent)] text-white'
+                    : 'text-[var(--app-text-muted)] hover:bg-[var(--app-accent-soft)] hover:text-[var(--app-text)]',
+                )
+              }
+            >
+              <Icon className="size-3.5 shrink-0" />
+              <span>{item.name}</span>
+            </NavLink>
+          );
+        })}
+      </div>
+
+      <main className="relative w-full flex-1 overflow-auto">
         <Outlet />
       </main>
     </div>

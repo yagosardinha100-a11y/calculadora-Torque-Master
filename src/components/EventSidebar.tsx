@@ -7,25 +7,24 @@ import Input from './ui/Input';
 import Select from './ui/Select';
 
 const STATUS_OPTIONS: { value: Status; label: string }[] = [
-  { value: 'Escala',       label: 'Escala' },
-  { value: 'Dobra',        label: 'Dobra' },
-  { value: 'Folga',        label: 'Folga' },
-  { value: 'Férias',       label: 'Férias' },
-  { value: 'Treinamento',  label: 'Treinamento' },
-  { value: 'Exame Médico', label: 'Exame Médico' },
-  { value: 'No Show',      label: 'No Show' },
+  { value: 'Escala', label: 'Escala' },
+  { value: 'Dobra', label: 'Dobra' },
+  { value: 'Folga', label: 'Folga' },
+  { value: 'Férias', label: 'Férias' },
+  { value: 'Treinamento', label: 'Treinamento' },
+  { value: 'Exame Médico', label: 'Exame Médico / Atestado' },
+  { value: 'No Show', label: 'No Show' },
 ];
 
 interface EventSidebarProps {
   collaborator: Collaborator | null;
-  date: string; // YYYY-MM-DD
+  date: string;
   event?: ScheduleEvent | null;
   onClose: () => void;
 }
 
 export default function EventSidebar({ collaborator, date, event, onClose }: EventSidebarProps) {
   const { addEvent, updateEvent, deleteEvent } = useData();
-
   const [startDate, setStartDate] = useState(event?.startDate ?? date);
   const [endDate, setEndDate] = useState(event?.endDate ?? date);
   const [status, setStatus] = useState<Status>(event?.status ?? 'Escala');
@@ -75,81 +74,54 @@ export default function EventSidebar({ collaborator, date, event, onClose }: Eve
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40"
-        style={{ background: 'rgba(0,0,0,0.25)' }}
-        onClick={onClose}
-      />
-
-      {/* Panel */}
-      <div
-        className="fixed right-0 top-0 z-50 flex h-full w-80 flex-col shadow-xl"
-        style={{ background: 'var(--app-surface)', borderLeft: '1px solid var(--app-border)' }}
-      >
-        {/* Header */}
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]" onClick={onClose} />
+      <aside className="animate-slide-in fixed top-0 right-0 z-50 flex h-full w-full max-w-sm flex-col border-l border-[var(--app-border)] bg-[var(--app-surface)] shadow-2xl">
         <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{ borderColor: 'var(--app-border)' }}
+          className="flex items-start justify-between gap-3 px-5 py-4"
+          style={{ background: 'var(--app-header)', color: 'var(--app-header-text)' }}
         >
-          <div>
-            <p className="text-xs font-semibold font-display" style={{ color: 'var(--app-text)' }}>
-              {collaborator.name}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--app-text-muted)' }}>{collaborator.role}</p>
+          <div className="min-w-0">
+            <p className="font-display text-[15px] font-semibold truncate">{collaborator.name}</p>
+            <p className="mt-0.5 text-[12px] text-white/60">{collaborator.role}</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:opacity-70">
-            <X size={16} style={{ color: 'var(--app-text-muted)' }} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer rounded-lg p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
+            <X className="size-4" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--app-text)' }}>
-            {event ? 'Editar Evento' : 'Novo Evento'}
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto bg-[var(--app-surface-muted)] p-5">
+          <h3 className="text-[13px] font-bold tracking-wide text-[var(--app-text)] uppercase">
+            {event ? 'Editar evento' : 'Novo evento'}
           </h3>
 
           <Select
             label="Status"
             value={status}
-            onChange={e => setStatus(e.target.value as Status)}
+            onChange={(e) => setStatus(e.target.value as Status)}
             options={STATUS_OPTIONS}
           />
-
-          <Input
-            label="Data Início"
-            type="date"
-            value={startDate}
-            onChange={e => setStartDate(e.target.value)}
-          />
-
-          <Input
-            label="Data Fim"
-            type="date"
-            value={endDate}
-            onChange={e => setEndDate(e.target.value)}
-          />
-
+          <Input label="Data início" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <Input label="Data fim" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           <Input
             label="Observação"
             type="text"
             value={note}
-            onChange={e => setNote(e.target.value)}
+            onChange={(e) => setNote(e.target.value)}
             placeholder="Opcional"
           />
 
           {error && (
-            <p className="rounded-md border px-3 py-2 text-xs" style={{ color: 'var(--app-danger)', borderColor: 'var(--app-danger)', background: 'rgba(200,30,74,0.06)' }}>
+            <p className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-[12px] text-rose-700 dark:border-rose-500/40 dark:bg-rose-950/40 dark:text-rose-200">
               {error}
             </p>
           )}
         </div>
 
-        {/* Footer */}
-        <div
-          className="flex items-center gap-2 border-t px-4 py-3"
-          style={{ borderColor: 'var(--app-border)' }}
-        >
+        <div className="flex items-center gap-2 border-t border-[var(--app-border)] bg-[var(--app-surface)] px-5 py-4">
           {event && (
             <Button variant="danger" size="sm" onClick={handleDelete} disabled={saving}>
               Excluir
@@ -163,7 +135,7 @@ export default function EventSidebar({ collaborator, date, event, onClose }: Eve
             {saving ? 'Salvando…' : 'Salvar'}
           </Button>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

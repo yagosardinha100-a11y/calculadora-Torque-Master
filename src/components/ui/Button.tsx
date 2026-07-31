@@ -6,42 +6,37 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
 }
 
-const base =
-  'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50 disabled:cursor-not-allowed';
-
-const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary:  'text-white',
-  secondary:'border',
-  ghost:    '',
-  danger:   'text-white',
-};
-
-const sizes: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'px-2.5 py-1 text-xs',
-  md: 'px-3.5 py-1.5 text-sm',
-  lg: 'px-5 py-2.5 text-base',
+const sizes = {
+  sm: 'h-8 px-2.5 text-[12px]',
+  md: 'h-9 px-3.5 text-[13px]',
+  lg: 'h-11 px-5 text-[14px]',
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', style, ...props }, ref) => {
-    const styleMap: React.CSSProperties =
+    const variantClass =
       variant === 'primary'
-        ? { background: 'var(--app-accent)', '--tw-ring-color': 'var(--app-accent)' } as React.CSSProperties
+        ? 'bg-[var(--app-accent)] text-white hover:bg-[var(--app-accent-hover)]'
         : variant === 'danger'
-        ? { background: 'var(--app-danger)', '--tw-ring-color': 'var(--app-danger)' } as React.CSSProperties
-        : variant === 'secondary'
-        ? { borderColor: 'var(--app-border)', color: 'var(--app-text)', background: 'var(--app-surface)' }
-        : { color: 'var(--app-text)' };
+          ? 'bg-[var(--app-danger)] text-white hover:opacity-90'
+          : variant === 'secondary'
+            ? 'border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] hover:bg-[var(--app-surface-muted)]'
+            : 'text-[var(--app-text-muted)] hover:bg-[var(--app-accent-soft)] hover:text-[var(--app-text)]';
 
     return (
       <button
         ref={ref}
-        className={cn(base, variants[variant], sizes[size], className)}
-        style={{ ...styleMap, ...style }}
+        className={cn(
+          'inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+          sizes[size],
+          variantClass,
+          className,
+        )}
+        style={style}
         {...props}
       />
     );
-  }
+  },
 );
 Button.displayName = 'Button';
 export default Button;

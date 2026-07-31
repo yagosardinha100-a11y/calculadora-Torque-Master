@@ -5,6 +5,7 @@ import type { Collaborator, Role } from '../domain/types';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
+import { PageHeader } from '../components/PageHeader';
 
 const ROLES: Role[] = [
   'Supervisor',
@@ -112,156 +113,145 @@ export default function CollaboratorsPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4" style={{ background: 'var(--app-bg)' }}>
-      <div className="max-w-3xl mx-auto flex flex-col gap-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-lg font-semibold" style={{ color: 'var(--app-text)' }}>
-            Colaboradores
-          </h1>
+    <div className="mx-auto h-full max-w-4xl space-y-4 overflow-y-auto p-3 sm:p-4">
+      <PageHeader
+        title="Colaboradores"
+        subtitle={`${filtered.length} na lista`}
+        action={
           <Button size="sm" onClick={openCreate}>
             <Plus size={14} /> Novo
           </Button>
-        </div>
+        }
+      />
 
-        {/* Search */}
+      <div className="animate-rise" style={{ animationDelay: '40ms' }}>
         <input
           type="text"
           placeholder="Buscar…"
           value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full max-w-xs rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-1"
-          style={{
-            background: 'var(--app-surface)',
-            borderColor: 'var(--app-border)',
-            color: 'var(--app-text)',
-            ['--tw-ring-color' as string]: 'var(--app-accent)',
-          }}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-10 w-full max-w-xs rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 text-[13px] text-[var(--app-text)] focus:ring-1 focus:ring-[var(--app-accent)] focus:outline-none"
         />
+      </div>
 
-        {/* Form */}
-        {showForm && (
-          <div
-            className="rounded-lg border p-4 flex flex-col gap-3"
-            style={{ background: 'var(--app-surface)', borderColor: 'var(--app-border)' }}
-          >
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--app-text)' }}>
-              {editId ? 'Editar Colaborador' : 'Novo Colaborador'}
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Input label="Nome" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-              <Select
-                label="Função"
-                value={form.role}
-                onChange={e => setForm(f => ({ ...f, role: e.target.value as Role }))}
-                options={ROLE_OPTIONS}
-              />
-              <Select
-                label="Turma"
-                value={form.turmaId}
-                onChange={e => setForm(f => ({ ...f, turmaId: e.target.value }))}
-                options={turmaOptions}
-              />
-              <Input
-                label="Data Embarque Inicial"
-                type="date"
-                value={form.startDate}
-                onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
-              />
-              <div className="flex items-center gap-2 pt-4">
-                <input
-                  type="checkbox"
-                  id="active-check"
-                  checked={form.active}
-                  onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
-                />
-                <label htmlFor="active-check" className="text-sm" style={{ color: 'var(--app-text)' }}>Ativo</label>
-              </div>
+      {showForm && (
+        <div className="app-surface animate-rise rounded-2xl p-4 sm:p-5">
+          <h2 className="mb-3 font-display text-[15px] font-semibold text-[var(--app-text)]">
+            {editId ? 'Editar colaborador' : 'Novo colaborador'}
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Input label="Nome" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
             </div>
-            {error && <p className="text-xs" style={{ color: 'var(--app-danger)' }}>{error}</p>}
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setShowForm(false)} disabled={saving}>
-                <X size={13} /> Cancelar
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={saving}>
-                <Check size={13} /> {saving ? 'Salvando…' : 'Salvar'}
-              </Button>
+            <Select
+              label="Função"
+              value={form.role}
+              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
+              options={ROLE_OPTIONS}
+            />
+            <Select
+              label="Turma"
+              value={form.turmaId}
+              onChange={(e) => setForm((f) => ({ ...f, turmaId: e.target.value }))}
+              options={turmaOptions}
+            />
+            <Input
+              label="Data embarque inicial"
+              type="date"
+              value={form.startDate}
+              onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+            />
+            <div className="flex items-center gap-2 pt-6">
+              <input
+                type="checkbox"
+                id="active-check"
+                checked={form.active}
+                onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+                className="size-4 accent-[var(--app-accent)]"
+              />
+              <label htmlFor="active-check" className="text-[13px] text-[var(--app-text)]">
+                Ativo
+              </label>
             </div>
           </div>
-        )}
+          {error && <p className="mt-2 text-[12px] text-[var(--app-danger)]">{error}</p>}
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowForm(false)} disabled={saving}>
+              <X size={13} /> Cancelar
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              <Check size={13} /> {saving ? 'Salvando…' : 'Salvar'}
+            </Button>
+          </div>
+        </div>
+      )}
 
-        {/* Table */}
-        <div
-          className="rounded-lg border overflow-hidden"
-          style={{ borderColor: 'var(--app-border)' }}
-        >
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ background: 'var(--app-surface-muted)' }}>
-                {['Nome', 'Função', 'Turma', 'Embarque', 'Status', ''].map(h => (
-                  <th key={h} className="px-3 py-2 text-left text-xs font-semibold" style={{ color: 'var(--app-text-muted)', borderBottom: '1px solid var(--app-border)' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(c => {
-                const turmaName = turmas.find(t => t.id === c.turmaId)?.name ?? '—';
-                return (
-                  <tr
-                    key={c.id}
-                    className="transition-colors hover:bg-[var(--app-surface-muted)]"
-                    style={{ borderBottom: '1px solid var(--app-border)' }}
-                  >
-                    <td className="px-3 py-2 font-medium" style={{ color: 'var(--app-text)' }}>{c.name}</td>
-                    <td className="px-3 py-2" style={{ color: 'var(--app-text-muted)' }}>{c.role}</td>
-                    <td className="px-3 py-2" style={{ color: 'var(--app-text-muted)' }}>{turmaName}</td>
-                    <td className="px-3 py-2" style={{ color: 'var(--app-text-muted)' }}>{c.startDate ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      <span
-                        className="rounded-full px-2 py-0.5 text-xs font-medium"
-                        style={{
-                          background: c.active ? 'rgba(13,148,136,0.15)' : 'rgba(148,163,184,0.15)',
-                          color: c.active ? 'var(--status-escala)' : 'var(--app-text-faint)',
-                        }}
+      <div className="app-surface animate-rise overflow-hidden rounded-2xl" style={{ animationDelay: '80ms' }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-[var(--app-surface-muted)]">
+              {['Nome', 'Função', 'Turma', 'Embarque', 'Status', ''].map((h) => (
+                <th
+                  key={h}
+                  className="border-b border-[var(--app-border)] px-3 py-2.5 text-left text-[11px] font-bold tracking-wide text-[var(--app-text-muted)] uppercase"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((c) => {
+              const turmaName = turmas.find((t) => t.id === c.turmaId)?.name ?? '—';
+              return (
+                <tr key={c.id} className="border-b border-[var(--app-border)] transition-colors hover:bg-[var(--app-surface-muted)]">
+                  <td className="px-3 py-2.5 font-semibold text-[var(--app-text)]">{c.name}</td>
+                  <td className="px-3 py-2.5 text-[var(--app-text-muted)]">{c.role}</td>
+                  <td className="px-3 py-2.5 text-[var(--app-text-muted)]">{turmaName}</td>
+                  <td className="px-3 py-2.5 text-[var(--app-text-muted)]">{c.startDate ?? '—'}</td>
+                  <td className="px-3 py-2.5">
+                    <span
+                      className="rounded-lg px-2 py-0.5 text-[11px] font-semibold"
+                      style={{
+                        background: c.active ? 'var(--app-accent-soft)' : 'rgba(148,163,184,0.15)',
+                        color: c.active ? 'var(--status-escala)' : 'var(--app-text-faint)',
+                      }}
+                    >
+                      {c.active ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        className="cursor-pointer rounded-lg p-1.5 text-[var(--app-text-muted)] transition hover:bg-[var(--app-accent-soft)] hover:text-[var(--app-accent)]"
+                        onClick={() => openEdit(c)}
+                        title="Editar"
                       >
-                        {c.active ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button
-                          className="p-1 rounded hover:opacity-70 transition-opacity"
-                          onClick={() => openEdit(c)}
-                          title="Editar"
-                        >
-                          <Pencil size={13} style={{ color: 'var(--app-text-muted)' }} />
-                        </button>
-                        <button
-                          className="p-1 rounded hover:opacity-70 transition-opacity"
-                          onClick={() => handleDelete(c.id, c.name)}
-                          title="Excluir"
-                        >
-                          <Trash2 size={13} style={{ color: 'var(--app-danger)' }} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-sm" style={{ color: 'var(--app-text-faint)' }}>
-                    Nenhum colaborador encontrado.
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="cursor-pointer rounded-lg p-1.5 text-[var(--app-danger)] transition hover:bg-rose-500/10"
+                        onClick={() => handleDelete(c.id, c.name)}
+                        title="Excluir"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-[13px] text-[var(--app-text-faint)]">
+                  Nenhum colaborador encontrado.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
