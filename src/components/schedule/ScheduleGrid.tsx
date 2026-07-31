@@ -17,7 +17,15 @@ interface ScheduleGridProps {
  * colaboradores fixa à esquerda, linha de POB fixa na base e rolagem
  * horizontal para os dias do mês.
  */
+function pobCellStyle(count: number, maxPob: number): string | undefined {
+  if (count <= 0) return undefined
+  const intensity = count / maxPob
+  return `rgba(59, 130, 246, ${0.35 + intensity * 0.55})`
+}
+
 export function ScheduleGrid({ days, matrix, onCellClick }: ScheduleGridProps) {
+  const maxPob = Math.max(1, ...matrix.pob)
+
   return (
     <div className="schedule-scroll min-h-0 flex-1 overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full border-separate border-spacing-0">
@@ -125,6 +133,7 @@ export function ScheduleGrid({ days, matrix, onCellClick }: ScheduleGridProps) {
             </th>
             {matrix.pob.map((count, index) => {
               const day = days[index]
+              const pobBackground = pobCellStyle(count, maxPob)
               return (
                 <td
                   key={day?.iso ?? index}
@@ -133,7 +142,15 @@ export function ScheduleGrid({ days, matrix, onCellClick }: ScheduleGridProps) {
                     day?.isToday ? 'bg-blue-700' : 'bg-slate-800',
                   )}
                 >
-                  <span className="text-xs font-bold text-white tabular-nums">{count}</span>
+                  <span
+                    className={cn(
+                      'inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1 text-xs font-bold tabular-nums',
+                      count > 0 ? 'text-white' : 'text-slate-500',
+                    )}
+                    style={pobBackground ? { backgroundColor: pobBackground } : undefined}
+                  >
+                    {count}
+                  </span>
                 </td>
               )
             })}

@@ -21,6 +21,7 @@ import { APPOINTMENT_LABELS, STATUS_CONFIG } from '@/constants/status'
 import { TEAM_COLORS } from '@/constants/teams'
 import { useData } from '@/context/DataContext'
 import type { Collaborator } from '@/types'
+import type { Appointment } from '@/types'
 import { formatDateRange, formatShortDate, todayISO } from '@/utils/dates'
 import { getAvailabilityInfo, type AvailabilityState } from '@/utils/schedule'
 import { cn } from '@/utils/cn'
@@ -30,6 +31,48 @@ const AVAILABILITY_CONFIG: Record<AvailabilityState, { label: string; badgeClass
   EMBARCADO: { label: 'Embarcado', badgeClass: 'bg-emerald-100 text-emerald-800' },
   COMPROMISSO: { label: 'Em compromisso', badgeClass: 'bg-violet-100 text-violet-800' },
   INATIVO: { label: 'Inativo', badgeClass: 'bg-slate-100 text-slate-500' },
+}
+
+const APPOINTMENT_DOT_COLORS: Partial<Record<Appointment['type'], string>> = {
+  FERIAS: 'bg-violet-500',
+  TREINAMENTO: 'bg-sky-500',
+  EXAME_MEDICO: 'bg-teal-500',
+}
+
+function AppointmentDots({ appointments }: { appointments: Appointment[] }) {
+  const activeTypes = new Set(
+    appointments
+      .filter((appointment) => appointment.startDate <= todayISO())
+      .map((appointment) => appointment.type),
+  )
+
+  const dots = (['FERIAS', 'TREINAMENTO', 'EXAME_MEDICO'] as const).filter((type) =>
+    activeTypes.has(type),
+  )
+
+  if (dots.length === 0) {
+    if (appointments.length > 0) {
+      return (
+        <span
+          className="size-2 shrink-0 rounded-full bg-slate-300"
+          title={`${appointments.length} compromisso(s) agendado(s)`}
+        />
+      )
+    }
+    return null
+  }
+
+  return (
+    <span className="flex shrink-0 items-center gap-0.5">
+      {dots.map((type) => (
+        <span
+          key={type}
+          className={cn('size-2 rounded-full ring-1 ring-white', APPOINTMENT_DOT_COLORS[type])}
+          title={APPOINTMENT_LABELS[type]}
+        />
+      ))}
+    </span>
+  )
 }
 
 export function CollaboratorsPage() {
@@ -178,9 +221,12 @@ export function CollaboratorsPage() {
                     </td>
                     <td className="border-b border-slate-100 px-4 py-3">
                       <div className="flex flex-col gap-1">
-                        <Badge className={availabilityConfig.badgeClass}>
-                          {availabilityConfig.label}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={availabilityConfig.badgeClass}>
+                            {availabilityConfig.label}
+                          </Badge>
+                          <AppointmentDots appointments={availability.upcomingAppointments} />
+                        </div>
                         {availability.nextEmbarkDate ? (
                           <span className="text-xs text-slate-400">
                             Próx. embarque: {formatShortDate(availability.nextEmbarkDate)}

@@ -1,9 +1,5 @@
 /**
- * Repositório genérico sobre o IndexedDB.
- *
- * Cada função abre uma transação curta e devolve `Promise`, mantendo o
- * restante da aplicação totalmente desacoplado da API de callbacks do
- * IndexedDB.
+ * Repositório unificado: IndexedDB com fallback transparente em memória.
  */
 
 import {
@@ -13,23 +9,53 @@ import {
   promisifyTransaction,
   type StoreName,
 } from '@/db/database'
+import {
+  isMemoryMode,
+  memoryClearAll,
+  memoryDelete,
+  memoryDeleteByCollaborator,
+  memoryDeleteMany,
+  memoryGetAll,
+  memoryPut,
+  memoryPutMany,
+  memoryReplaceStore,
+} from '@/db/memoryStore'
+
+export function storageMode(): 'indexeddb' | 'memory' {
+  return isMemoryMode() ? 'memory' : 'indexeddb'
+}
 
 export async function getAllRecords<T>(storeName: StoreName): Promise<T[]> {
+  if (isMemoryMode()) return memoryGetAll<T>(storeName)
   const db = await getDatabase()
   const transaction = db.transaction(storeName, 'readonly')
   const request = transaction.objectStore(storeName).getAll() as IDBRequest<T[]>
   return promisifyRequest(request)
 }
 
-export async function putRecord<T>(storeName: StoreName, record: T): Promise<void> {
+export async function putRecord<T extends { id: string }>(
+  storeName: StoreName,
+  record: T,
+): Promise<void> {
+  if (isMemoryMode()) {
+    memoryPut(storeName, record)
+    return
+  }
   const db = await getDatabase()
   const transaction = db.transaction(storeName, 'readwrite')
   transaction.objectStore(storeName).put(record)
   await promisifyTransaction(transaction)
 }
 
-export async function putRecords<T>(storeName: StoreName, records: T[]): Promise<void> {
+export async function putRecords<T extends { id: string }>(
+  storeName: StoreName,
+  records: T[],
+): Promise<void> {
   if (records.length === 0) return
+  if (isMemoryMode()) {
+    memoryPutMany(storeName, records)
+    return
+  }
   const db = await getDatabase()
   const transaction = db.transaction(storeName, 'readwrite')
   const store = transaction.objectStore(storeName)
@@ -40,6 +66,10 @@ export async function putRecords<T>(storeName: StoreName, records: T[]): Promise
 }
 
 export async function deleteRecord(storeName: StoreName, key: string): Promise<void> {
+  if (isMemoryMode()) {
+    memoryDelete(storeName, key)
+    return
+  }
   const db = await getDatabase()
   const transaction = db.transaction(storeName, 'readwrite')
   transaction.objectStore(storeName).delete(key)
@@ -48,6 +78,10 @@ export async function deleteRecord(storeName: StoreName, key: string): Promise<v
 
 export async function deleteRecords(storeName: StoreName, keys: string[]): Promise<void> {
   if (keys.length === 0) return
+  if (isMemoryMode()) {
+    memoryDeleteMany(storeName, keys)
+    return
+  }
   const db = await getDatabase()
   const transaction = db.transaction(storeName, 'readwrite')
   const store = transaction.objectStore(storeName)
@@ -57,14 +91,14 @@ export async function deleteRecords(storeName: StoreName, keys: string[]): Promi
   await promisifyTransaction(transaction)
 }
 
-/**
- * Remove, em uma única transação, todos os registros vinculados a um
- * colaborador nos stores que possuem o índice `byCollaborator`.
- */
 export async function deleteByCollaborator(
   storeNames: StoreName[],
   collaboratorId: string,
 ): Promise<void> {
+  if (isMemoryMode()) {
+    memoryDeleteByCollaborator(storeNames, collaboratorId)
+    return
+  }
   const db = await getDatabase()
   const transaction = db.transaction(storeNames, 'readwrite')
   for (const storeName of storeNames) {
@@ -81,8 +115,14 @@ export async function deleteByCollaborator(
   await promisifyTransaction(transaction)
 }
 
-/** Substitui todo o conteúdo de um store (usado na importação de backup). */
-export async function replaceStore<T>(storeName: StoreName, records: T[]): Promise<void> {
+export async function replaceStore<T extends { id: string }>(
+  storeName: StoreName,
+  records: T[],
+): Promise<void> {
+  if (isMemoryMode()) {
+    memoryReplaceStore(storeName, records)
+    return
+  }
   const db = await getDatabase()
   const transaction = db.transaction(storeName, 'readwrite')
   const store = transaction.objectStore(storeName)
@@ -93,8 +133,11 @@ export async function replaceStore<T>(storeName: StoreName, records: T[]): Promi
   await promisifyTransaction(transaction)
 }
 
-/** Apaga todos os dados da aplicação. */
 export async function clearAllStores(): Promise<void> {
+  if (isMemoryMode()) {
+    memoryClearAll()
+    return
+  }
   const db = await getDatabase()
   const transaction = db.transaction(ALL_STORE_NAMES, 'readwrite')
   for (const storeName of ALL_STORE_NAMES) {

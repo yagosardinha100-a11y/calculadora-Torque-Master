@@ -3,29 +3,29 @@ import { DownloadIcon, RotateCcwIcon, UploadIcon } from '@/components/icons'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useData } from '@/context/DataContext'
+import { useToast } from '@/context/ToastContext'
 import type { BackupPayload } from '@/types'
 import { downloadBackup, parseBackupFile, readFileAsText } from '@/utils/backup'
 
-type Notice = { kind: 'success' | 'error'; message: string } | null
-
 export function DataSection() {
-  const { buildBackup, importBackup, clearAllData } = useData()
+  const { buildBackup, importBackup, clearAllData, resetLocalDatabase, storageMode } = useData()
+  const { showToast } = useToast()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [notice, setNotice] = useState<Notice>(null)
   const [pendingImport, setPendingImport] = useState<BackupPayload | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const handleExport = () => {
     try {
       downloadBackup(buildBackup())
-      setNotice({ kind: 'success', message: 'Backup exportado com sucesso.' })
+      showToast('success', 'Backup exportado com sucesso.')
     } catch (error) {
-      setNotice({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Falha ao exportar o backup.',
-      })
+      showToast(
+        'error',
+        error instanceof Error ? error.message : 'Falha ao exportar o backup.',
+      )
     }
   }
 
@@ -35,12 +35,11 @@ export function DataSection() {
       const text = await readFileAsText(file)
       const payload = parseBackupFile(text)
       setPendingImport(payload)
-      setNotice(null)
     } catch (error) {
-      setNotice({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Arquivo de backup inválido.',
-      })
+      showToast(
+        'error',
+        error instanceof Error ? error.message : 'Arquivo de backup inválido.',
+      )
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -51,12 +50,12 @@ export function DataSection() {
     try {
       setBusy(true)
       await importBackup(pendingImport)
-      setNotice({ kind: 'success', message: 'Backup importado com sucesso.' })
+      showToast('success', 'Backup importado com sucesso.')
     } catch (error) {
-      setNotice({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Falha ao importar o backup.',
-      })
+      showToast(
+        'error',
+        error instanceof Error ? error.message : 'Falha ao importar o backup.',
+      )
     } finally {
       setBusy(false)
       setPendingImport(null)
@@ -67,15 +66,31 @@ export function DataSection() {
     try {
       setBusy(true)
       await clearAllData()
-      setNotice({ kind: 'success', message: 'Todos os dados foram apagados.' })
+      showToast('success', 'Todos os dados foram apagados.')
     } catch (error) {
-      setNotice({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Falha ao apagar os dados.',
-      })
+      showToast(
+        'error',
+        error instanceof Error ? error.message : 'Falha ao apagar os dados.',
+      )
     } finally {
       setBusy(false)
       setConfirmClear(false)
+    }
+  }
+
+  const handleConfirmReset = async () => {
+    try {
+      setBusy(true)
+      await resetLocalDatabase()
+      showToast('success', 'Banco de dados local recriado com sucesso.')
+    } catch (error) {
+      showToast(
+        'error',
+        error instanceof Error ? error.message : 'Falha ao resetar o banco local.',
+      )
+    } finally {
+      setBusy(false)
+      setConfirmReset(false)
     }
   }
 
@@ -83,21 +98,11 @@ export function DataSection() {
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-base font-semibold text-slate-900">Dados</h2>
       <p className="mt-0.5 text-sm text-slate-500">
-        Todos os dados ficam armazenados apenas neste navegador (IndexedDB). Exporte backups
-        periodicamente para não perder o histórico.
+        Todos os dados ficam armazenados apenas neste navegador
+        {storageMode === 'memory'
+          ? ' (modo alternativo — exporte backups com frequência).'
+          : ' (IndexedDB). Exporte backups periodicamente para não perder o histórico.'}
       </p>
-
-      {notice ? (
-        <p
-          className={
-            notice.kind === 'success'
-              ? 'mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 ring-1 ring-emerald-200'
-              : 'mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 ring-1 ring-rose-200'
-          }
-        >
-          {notice.message}
-        </p>
-      ) : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Button variant="secondary" size="sm" icon={<DownloadIcon />} onClick={handleExport}>
@@ -120,6 +125,14 @@ export function DataSection() {
           onClick={() => setConfirmClear(true)}
         >
           Apagar todos os dados
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={busy}
+          onClick={() => setConfirmReset(true)}
+        >
+          Resetar banco local
         </Button>
         <input
           ref={fileInputRef}
@@ -146,6 +159,15 @@ export function DataSection() {
         confirmLabel="Apagar tudo"
         onConfirm={() => void handleConfirmClear()}
         onCancel={() => setConfirmClear(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmReset}
+        title="Resetar banco local"
+        message="Recria o IndexedDB do zero. Use quando houver erro de schema ou dados corrompidos. Exporte um backup antes, se possível."
+        confirmLabel="Resetar banco"
+        onConfirm={() => void handleConfirmReset()}
+        onCancel={() => setConfirmReset(false)}
       />
     </section>
   )

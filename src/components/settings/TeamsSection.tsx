@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { TEAM_COLORS } from '@/constants/teams'
 import { useData } from '@/context/DataContext'
-import type { Team } from '@/types'
-import { formatShortDate, todayISO } from '@/utils/dates'
+import type { Team, TeamColorKey } from '@/types'
+import { formatShortDate, isValidISODate, todayISO } from '@/utils/dates'
 import { getBaseStatus, getEmbarkEndDate, getNextEmbarkDate } from '@/utils/schedule'
 import { cn } from '@/utils/cn'
 
@@ -71,10 +71,37 @@ export function TeamsSection() {
           </li>
         ) : null}
         {teams.map((team) => {
-          const color = TEAM_COLORS[team.color]
+          const colorKey = team.color in TEAM_COLORS ? team.color : ('slate' as TeamColorKey)
+          const color = TEAM_COLORS[colorKey]
           const memberCount = collaborators.filter(
             (collaborator) => collaborator.teamId === team.id,
           ).length
+
+          if (!isValidISODate(team.anchorDate)) {
+            return (
+              <li
+                key={team.id}
+                className="flex items-center gap-3 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+              >
+                <span className="min-w-0 flex-1">
+                  Turma “{team.name}” com data âncora inválida — edite para corrigir.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(team)
+                    setFormOpen(true)
+                  }}
+                  title="Editar turma"
+                  aria-label={`Editar ${team.name}`}
+                  className="rounded-lg p-2 text-rose-500 transition-colors hover:bg-rose-100"
+                >
+                  <PencilIcon className="size-4" />
+                </button>
+              </li>
+            )
+          }
+
           const baseToday = getBaseStatus(today, team, cycle)
           const statusText =
             baseToday === 'ESCALA'

@@ -2,7 +2,13 @@
 
 Aplicação web para controle da escala 14x14 da equipe de mecânica de um navio de perfuração offshore, substituindo a planilha Excel utilizada pelo supervisor.
 
-Uso exclusivamente interno, sem login e sem banco de dados online: **todos os dados ficam armazenados localmente no navegador via IndexedDB**.
+Uso exclusivamente interno, sem login e sem banco de dados online: **todos os dados ficam armazenados localmente no navegador** (IndexedDB, com fallback automático em memória/localStorage quando o IndexedDB falha no mobile).
+
+## Demo online
+
+**https://yagosardinha100-a11y.github.io/calculadora-Torque-Master/**
+
+Versão unificada que combina o melhor de todas as implementações anteriores (motor testado, POB com intensidade visual, HashRouter, toast, fallback mobile e recuperação automática de schema).
 
 ## Tecnologias
 

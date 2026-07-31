@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AlertTriangleIcon, AnchorIcon } from '@/components/icons'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageErrorBoundary } from '@/components/layout/PageErrorBoundary'
+import { AppLayoutWithBanner } from '@/components/layout/StorageBanner'
+import { ToastContainer } from '@/components/ui/ToastContainer'
+import { Button } from '@/components/ui/Button'
 import { DataProvider, useData } from '@/context/DataContext'
+import { ToastProvider } from '@/context/ToastContext'
 import { CollaboratorsPage } from '@/pages/CollaboratorsPage'
 import { SchedulePage } from '@/pages/SchedulePage'
 import { SettingsPage } from '@/pages/SettingsPage'
-import type { PageId } from '@/types/navigation'
+import { PAGE_PATHS, pageFromPath } from '@/types/navigation'
 
 function LoadingScreen() {
   return (
@@ -18,7 +23,12 @@ function LoadingScreen() {
   )
 }
 
-function ErrorScreen({ message }: { message: string }) {
+interface ErrorScreenProps {
+  message: string
+  onReset: () => void
+}
+
+function ErrorScreen({ message, onReset }: ErrorScreenProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 bg-slate-100 p-6">
       <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
@@ -30,36 +40,68 @@ function ErrorScreen({ message }: { message: string }) {
         </p>
         <p className="mt-1 text-sm text-slate-500">{message}</p>
         <p className="mt-3 text-xs text-slate-400">
-          Verifique se o navegador permite armazenamento local (IndexedDB) e recarregue a
-          página.
+          Se o problema persistir, recrie o banco local. Seus dados atuais podem ser perdidos —
+          exporte um backup antes, se possível.
         </p>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <Button variant="secondary" onClick={() => window.location.reload()}>
+            Recarregar
+          </Button>
+          <Button variant="danger" onClick={onReset}>
+            Resetar dados locais
+          </Button>
+        </div>
       </div>
     </div>
   )
 }
 
-function AppContent() {
-  const { status, loadError } = useData()
-  const [currentPage, setCurrentPage] = useState<PageId>('escala')
+function AppShell() {
+  const { status, loadError, storageMode, resetLocalDatabase } = useData()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const currentPage = pageFromPath(location.pathname)
+
+  const handleNavigate = (page: keyof typeof PAGE_PATHS) => {
+    navigate(PAGE_PATHS[page])
+  }
 
   if (status === 'loading') return <LoadingScreen />
   if (status === 'error') {
-    return <ErrorScreen message={loadError ?? 'Erro desconhecido ao acessar o IndexedDB.'} />
+    return (
+      <ErrorScreen
+        message={loadError ?? 'Erro desconhecido ao acessar o armazenamento local.'}
+        onReset={() => void resetLocalDatabase()}
+      />
+    )
   }
 
   return (
-    <AppLayout currentPage={currentPage} onNavigate={setCurrentPage}>
-      {currentPage === 'escala' ? <SchedulePage onNavigate={setCurrentPage} /> : null}
-      {currentPage === 'colaboradores' ? <CollaboratorsPage /> : null}
-      {currentPage === 'configuracoes' ? <SettingsPage /> : null}
-    </AppLayout>
+    <AppLayoutWithBanner storageMode={storageMode}>
+      <AppLayout currentPage={currentPage} onNavigate={handleNavigate}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/escala" replace />} />
+          <Route path="/escala" element={<SchedulePage onNavigate={handleNavigate} />} />
+          <Route path="/colaboradores" element={<CollaboratorsPage />} />
+          <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/escala" replace />} />
+        </Routes>
+      </AppLayout>
+    </AppLayoutWithBanner>
   )
 }
 
 export default function App() {
   return (
-    <DataProvider>
-      <AppContent />
-    </DataProvider>
+    <PageErrorBoundary>
+      <ToastProvider>
+        <DataProvider>
+          <HashRouter>
+            <AppShell />
+          </HashRouter>
+          <ToastContainer />
+        </DataProvider>
+      </ToastProvider>
+    </PageErrorBoundary>
   )
 }

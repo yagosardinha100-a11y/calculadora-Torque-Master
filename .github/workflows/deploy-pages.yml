@@ -2,7 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: [main, cursor/escala-mecanica-offshore-f512]
+    branches: [main, cursor/unified-escala-perfeita-f512]
   workflow_dispatch:
 
 permissions:

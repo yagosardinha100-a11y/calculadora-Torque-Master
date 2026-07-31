@@ -15,7 +15,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { STORE_NAMES } from '@/db/database'
+import { STORE_NAMES, initStorage, isSchemaMismatchError, resetDatabase } from '@/db/database'
 import {
   clearAllStores,
   deleteByCollaborator,
@@ -23,6 +23,7 @@ import {
   getAllRecords,
   putRecord,
   replaceStore,
+  storageMode as getStorageMode,
 } from '@/db/repository'
 import { buildDefaultSettings, ensureSeedData } from '@/db/seed'
 import type {
@@ -133,6 +134,8 @@ export interface DataContextValue {
   buildBackup: () => BackupPayload
   importBackup: (payload: BackupPayload) => Promise<void>
   clearAllData: () => Promise<void>
+  resetLocalDatabase: () => Promise<void>
+  storageMode: 'indexeddb' | 'memory'
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -144,6 +147,7 @@ const DataContext = createContext<DataContextValue | null>(null)
 export function DataProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<LoadStatus>('loading')
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [storageMode, setStorageMode] = useState<'indexeddb' | 'memory'>('indexeddb')
 
   const [settings, setSettings] = useState<AppSettings>(buildDefaultSettings)
   const [teams, setTeams] = useState<Team[]>([])
@@ -179,22 +183,50 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+
+    const initialize = async () => {
+      const mode = await initStorage()
+      if (!cancelled) setStorageMode(mode)
+      await ensureSeedData()
+      await loadAll()
+      if (!cancelled) {
+        setLoadError(null)
+        setStatus('ready')
+        setStorageMode(getStorageMode())
+      }
+    }
+
     ;(async () => {
       try {
-        await ensureSeedData()
-        await loadAll()
-        if (!cancelled) setStatus('ready')
+        await initialize()
       } catch (error) {
+        if (!cancelled && isSchemaMismatchError(error)) {
+          try {
+            await resetDatabase()
+            await initialize()
+            return
+          } catch (retryError) {
+            if (!cancelled) {
+              setLoadError(
+                retryError instanceof Error
+                  ? retryError.message
+                  : 'Falha ao recriar o banco de dados local.',
+              )
+              setStatus('error')
+            }
+            return
+          }
+        }
+
         if (!cancelled) {
           setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Falha ao carregar os dados locais.',
+            error instanceof Error ? error.message : 'Falha ao carregar os dados locais.',
           )
           setStatus('error')
         }
       }
     })()
+
     return () => {
       cancelled = true
     }
@@ -445,6 +477,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await loadAll()
   }, [loadAll])
 
+  const resetLocalDatabase = useCallback(async (): Promise<void> => {
+    await resetDatabase()
+    await ensureSeedData()
+    await loadAll()
+    setLoadError(null)
+    setStorageMode(getStorageMode())
+    setStatus('ready')
+  }, [loadAll])
+
   /* ---------------------------- Derivados -------------------------- */
 
   const lookups = useMemo(
@@ -485,6 +526,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       buildBackup,
       importBackup,
       clearAllData,
+      resetLocalDatabase,
+      storageMode,
     }),
     [
       status,
@@ -513,6 +556,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       buildBackup,
       importBackup,
       clearAllData,
+      resetLocalDatabase,
+      storageMode,
     ],
   )
 
