@@ -167,16 +167,16 @@ export default function ScheduleGrid({
       <div className="flex-1 overflow-auto">
         <table className="w-max border-separate border-spacing-0 text-xs" style={{ tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ minWidth: 220, width: 220 }} />
+            <col style={{ minWidth: 240, width: 240 }} />
             {days.map((_, i) => (
-              <col key={i} style={{ minWidth: 38, width: 38 }} />
+              <col key={i} style={{ minWidth: 52, width: 52 }} />
             ))}
           </colgroup>
 
           <thead>
             <tr>
               <th
-                className="sticky top-0 left-0 z-40 px-3 py-2 text-left text-[11px] font-bold tracking-wide text-[var(--app-accent)] uppercase"
+                className="sticky top-0 left-0 z-40 px-3 py-2.5 text-left text-[12px] font-bold tracking-wide text-[var(--app-accent)] uppercase"
                 style={{
                   background: 'var(--app-surface-muted)',
                   borderBottom: '1px solid var(--app-border)',
@@ -191,21 +191,21 @@ export default function ScheduleGrid({
                 return (
                   <th
                     key={i}
-                    className="sticky top-0 z-30 px-0 py-1 text-center"
+                    className="sticky top-0 z-30 px-0 py-1.5 text-center"
                     style={{
                       background: today ? 'var(--app-accent)' : 'var(--app-surface-muted)',
                       color: today ? '#fff' : 'var(--app-text-muted)',
                       borderBottom: '1px solid var(--app-border)',
-                      borderLeft: monthLabel ? '1px solid var(--app-border-strong)' : undefined,
+                      borderLeft: monthLabel ? '2px solid var(--app-accent)' : undefined,
                     }}
                   >
                     {monthLabel && (
-                      <div className={cn('text-[9px] leading-none font-semibold', today ? 'text-white/80' : 'text-[var(--app-text-faint)]')}>
+                      <div className={cn('mb-0.5 text-[11px] leading-none font-bold tracking-wide uppercase', today ? 'text-white/90' : 'text-[var(--app-accent)]')}>
                         {monthLabel}
                       </div>
                     )}
-                    <div className="text-[11px] leading-tight font-bold">{format(d, 'dd')}</div>
-                    <div className={cn('text-[9px] leading-none', today ? 'text-white/70' : 'text-[var(--app-text-faint)]')}>
+                    <div className="text-[13px] leading-tight font-bold">{format(d, 'dd')}</div>
+                    <div className={cn('text-[10px] leading-none font-semibold', today ? 'text-white/75' : 'text-[var(--app-text-faint)]')}>
                       {WEEKDAY[getDay(d)]}
                     </div>
                   </th>
@@ -294,7 +294,7 @@ export default function ScheduleGrid({
                             className="cursor-pointer p-px select-none"
                             style={{
                               borderBottom: '1px solid var(--app-border)',
-                              borderLeft: isFirstOfMonth ? '1px solid var(--app-border-strong)' : undefined,
+                              borderLeft: isFirstOfMonth ? '2px solid var(--app-accent)' : undefined,
                               background: today ? 'var(--app-accent-soft)' : undefined,
                             }}
                             onClick={() => handleCellClick(colab, d)}
@@ -302,7 +302,7 @@ export default function ScheduleGrid({
                           >
                             <div
                               className={cn(
-                                'flex h-9 min-h-9 w-full items-center justify-center overflow-hidden transition-opacity hover:opacity-90',
+                                'flex h-11 min-h-11 w-full items-center justify-center overflow-hidden transition-opacity hover:opacity-90',
                                 radius,
                               )}
                               style={{
@@ -316,11 +316,11 @@ export default function ScheduleGrid({
                             >
                               {status === 'Folga' ? (
                                 <span
-                                  className="inline-block size-1 rounded-full"
+                                  className="inline-block size-1.5 rounded-full"
                                   style={{ background: 'var(--status-folga)', opacity: 0.55 }}
                                 />
                               ) : showLabel ? (
-                                <span className="text-[9px] leading-none font-bold tracking-tight text-white">
+                                <span className="text-[10px] leading-none font-bold tracking-tight text-white">
                                   {cfg.label}
                                 </span>
                               ) : null}

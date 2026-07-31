@@ -22,7 +22,7 @@ const ROLES: Role[] = [
 export default function SchedulePage() {
   const { collaborators, loading } = useData();
   const [startMonth, setStartMonth] = useState(() => startOfMonth(new Date()));
-  const [monthsCount, setMonthsCount] = useState<MonthsCount>(3);
+  const [monthsCount, setMonthsCount] = useState<MonthsCount>(1);
   const [searchName, setSearchName] = useState('');
   const [filterRole, setFilterRole] = useState('');
 
