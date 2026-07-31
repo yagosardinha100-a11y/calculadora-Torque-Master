@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { auth } from './firebase';
 
 export enum OperationType {

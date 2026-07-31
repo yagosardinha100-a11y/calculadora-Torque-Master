@@ -2,8 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { collection, onSnapshot, query, orderBy, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { firestore, auth } from './firebase';
-import type { Collaborator, ScheduleEvent, Turma, VacationPlan, TrainingRecord, Status } from '../domain/types';
-import { handleFirestoreError, OperationType } from './firestoreErrors';
+import type { Collaborator, ScheduleEvent, Status, Turma, VacationPlan, TrainingRecord } from '../domain/types';
 import {
   createCollaboratorInFirestore,
   updateCollaboratorInFirestore,
@@ -215,6 +214,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               createdAt: formatTimestamp(data.createdAt),
               updatedAt: formatTimestamp(data.updatedAt),
               version: typeof data.version === 'number' ? data.version : 1,
+              vacationType: data.vacationType,
+              boardingStart: data.boardingStart ? String(data.boardingStart) : undefined,
+              boardingEnd: data.boardingEnd ? String(data.boardingEnd) : undefined,
+              soldDays: typeof data.soldDays === 'number' ? data.soldDays : undefined,
+              requiresCoverageTurn1: data.requiresCoverageTurn1,
+              requiresCoverageTurn2: data.requiresCoverageTurn2,
             });
           });
           setVacations(list);
