@@ -710,8 +710,9 @@ export function analyzeVacationCoverage(
   };
 
   if (needWeek1 && needWeek2 && vacationType === 'FULL') {
-    const top1 = validW1.slice(0, 12);
-    const top2 = validW2.slice(0, 12);
+    // Avalia amplo conjunto de candidatos para listar todas as combinações viáveis
+    const top1 = validW1.slice(0, 20);
+    const top2 = validW2.slice(0, 20);
     if (top1.length === 0 && top2.length === 0) {
       pushCombo(null, null);
     } else if (top1.length === 0) {
@@ -726,7 +727,7 @@ export function analyzeVacationCoverage(
       }
     }
   } else if (needWeek2 && vacationType === 'SELL_10') {
-    for (const w2 of validW2.slice(0, 15)) pushCombo(null, w2);
+    for (const w2 of validW2.slice(0, 30)) pushCombo(null, w2);
     if (combinations.length === 0) pushCombo(null, null);
   }
 
@@ -783,7 +784,7 @@ export function analyzeVacationCoverage(
     missedWorkEnd: missed.end,
     targetPob: TARGET_POB,
     slots,
-    combinations: combinations.slice(0, 8),
+    combinations: combinations.slice(0, 40),
     best,
   };
 }

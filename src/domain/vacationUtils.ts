@@ -247,12 +247,44 @@ export interface CoverageSlotSuggestion {
   candidates: CandidateRecommendation[];
 }
 
+export interface CoverageWeekDetailView {
+  collaboratorId: string;
+  collaboratorName: string;
+  role: string;
+  strategy: 'prolong' | 'anticipate';
+  startDate: string;
+  endDate: string;
+  coveredDays: number;
+  lagDays: number;
+  weekDays: number;
+  prolongDays: number;
+  remainingFolgaDays: number;
+  reason: string;
+  badgeLabel: string;
+  embarkWeekday: string;
+  vacationerEmbarkWeekday: string;
+  isSameRole: boolean;
+}
+
+export interface CoverageDailyPobView {
+  date: string;
+  dayLabel: string;
+  weekday: string;
+  pob: number;
+  covered: boolean;
+  atTarget: boolean;
+}
+
 export interface CoverageCombinationView {
+  id: string;
   score: number;
   daysAtTargetPob: number;
   totalMissedDays: number;
   uncoveredDays: number;
+  avgAbsPobDelta: number;
   summary: string;
+  week1: CoverageWeekDetailView | null;
+  week2: CoverageWeekDetailView | null;
   week1CollaboratorId: string | null;
   week1Start: string | null;
   week1End: string | null;
@@ -261,6 +293,7 @@ export interface CoverageCombinationView {
   week2Start: string | null;
   week2End: string | null;
   week2Strategy: 'prolong' | 'anticipate' | null;
+  dailyPob: CoverageDailyPobView[];
 }
 
 export interface CoverageSuggestionsResult {
@@ -421,21 +454,67 @@ export function calculateCoverageSuggestions(
     };
   });
 
-  const combinations: CoverageCombinationView[] = analysis.combinations.map((c) => ({
-    score: c.score,
-    daysAtTargetPob: c.daysAtTargetPob,
-    totalMissedDays: c.totalMissedDays,
-    uncoveredDays: c.uncoveredDays,
-    summary: c.summary,
-    week1CollaboratorId: c.week1?.collaborator.id ?? null,
-    week1Start: c.week1?.startDate ?? null,
-    week1End: c.week1?.endDate ?? null,
-    week1Strategy: c.week1?.strategy ?? null,
-    week2CollaboratorId: c.week2?.collaborator.id ?? null,
-    week2Start: c.week2?.startDate ?? null,
-    week2End: c.week2?.endDate ?? null,
-    week2Strategy: c.week2?.strategy ?? null,
-  }));
+  const combinations: CoverageCombinationView[] = analysis.combinations.map((c, idx) => {
+    const toWeek = (
+      action: NonNullable<typeof c.week1> | null,
+    ): CoverageWeekDetailView | null => {
+      if (!action) return null;
+      return {
+        collaboratorId: action.collaborator.id,
+        collaboratorName: action.collaborator.name,
+        role: action.collaborator.role,
+        strategy: action.strategy,
+        startDate: action.startDate,
+        endDate: action.endDate,
+        coveredDays: action.coveredDays,
+        lagDays: action.lagDays,
+        weekDays: action.weekDays,
+        prolongDays: action.prolongDays,
+        remainingFolgaDays: action.remainingFolgaDays,
+        reason: action.reason,
+        badgeLabel: action.badgeLabel,
+        embarkWeekday: action.embarkWeekday,
+        vacationerEmbarkWeekday: action.vacationerEmbarkWeekday,
+        isSameRole: action.isSameRole,
+      };
+    };
+
+    const week1 = toWeek(c.week1);
+    const week2 = toWeek(c.week2);
+    const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+    return {
+      id: `combo-${idx}-${week1?.collaboratorId ?? 'x'}-${week2?.collaboratorId ?? 'y'}`,
+      score: c.score,
+      daysAtTargetPob: c.daysAtTargetPob,
+      totalMissedDays: c.totalMissedDays,
+      uncoveredDays: c.uncoveredDays,
+      avgAbsPobDelta: c.avgAbsPobDelta,
+      summary: c.summary,
+      week1,
+      week2,
+      week1CollaboratorId: week1?.collaboratorId ?? null,
+      week1Start: week1?.startDate ?? null,
+      week1End: week1?.endDate ?? null,
+      week1Strategy: week1?.strategy ?? null,
+      week2CollaboratorId: week2?.collaboratorId ?? null,
+      week2Start: week2?.startDate ?? null,
+      week2End: week2?.endDate ?? null,
+      week2Strategy: week2?.strategy ?? null,
+      dailyPob: c.dailyPob.map((d) => {
+        const [y, m, day] = d.date.split('-').map(Number);
+        const wd = weekdays[new Date(Date.UTC(y, m - 1, day)).getUTCDay()];
+        return {
+          date: d.date,
+          dayLabel: formatDateBR(d.date),
+          weekday: wd,
+          pob: d.pob,
+          covered: d.covered,
+          atTarget: d.pob === analysis.targetPob,
+        };
+      }),
+    };
+  });
 
   return {
     slots,

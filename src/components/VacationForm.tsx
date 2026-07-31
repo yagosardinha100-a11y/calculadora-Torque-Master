@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Sparkles, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useData } from '../data/DataProvider';
 import type { VacationPlan, VacationType, VacationCoverage } from '../domain/types';
 import {
@@ -12,6 +12,7 @@ import {
   requireVacationAnchor,
   type CoverageSuggestionsResult,
   type CoverageCombinationView,
+  type CoverageWeekDetailView,
 } from '../domain';
 import Button from './ui/Button';
 import Input from './ui/Input';
@@ -26,6 +27,116 @@ const TYPE_OPTIONS: { value: VacationType; label: string }[] = [
 interface Props {
   plan: VacationPlan | null;
   onClose: () => void;
+}
+
+function strategyLabel(s: 'prolong' | 'anticipate' | null | undefined): string {
+  if (s === 'prolong') return 'Prolonga embarque';
+  if (s === 'anticipate') return 'Antecipa embarque';
+  return '—';
+}
+
+function WeekDetailCard({
+  title,
+  week,
+}: {
+  title: string;
+  week: CoverageWeekDetailView | null;
+}) {
+  if (!week) {
+    return (
+      <div className="rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface-muted)] p-2.5">
+        <p className="text-[11px] font-semibold text-[var(--app-text)]">{title}</p>
+        <p className="mt-1 text-[11px] text-[var(--app-text-muted)]">Sem cobertura nesta semana</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-2.5">
+      <p className="text-[11px] font-semibold text-[var(--app-text)]">{title}</p>
+      <p className="mt-1 text-[12px] font-semibold text-[var(--status-escala)]">
+        {week.collaboratorName}
+        <span className="font-normal text-[var(--app-text-muted)]"> · {week.role}</span>
+      </p>
+      <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
+        <div>
+          <dt className="text-[var(--app-text-muted)]">Estratégia</dt>
+          <dd className="font-medium text-[var(--app-text)]">{strategyLabel(week.strategy)}</dd>
+        </div>
+        <div>
+          <dt className="text-[var(--app-text-muted)]">Dobra</dt>
+          <dd className="font-medium text-[var(--app-text)]">
+            {formatDateBR(week.startDate)} → {formatDateBR(week.endDate)} ({week.coveredDays}d)
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[var(--app-text-muted)]">
+            {week.strategy === 'prolong' ? 'Dias prolongados' : 'Dias antecipados'}
+          </dt>
+          <dd className="font-medium text-[var(--app-text)]">{week.prolongDays}d (máx. 7)</dd>
+        </div>
+        <div>
+          <dt className="text-[var(--app-text-muted)]">Folga restante</dt>
+          <dd className="font-medium text-[var(--app-text)]">{week.remainingFolgaDays}d</dd>
+        </div>
+        <div>
+          <dt className="text-[var(--app-text-muted)]">Defasagem</dt>
+          <dd className="font-medium text-[var(--app-text)]">
+            {week.lagDays > 0
+              ? `${week.lagDays}d sem cobertura na semana`
+              : 'Semana completa'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[var(--app-text-muted)]">Embarque</dt>
+          <dd className="font-medium text-[var(--app-text)]">
+            {week.embarkWeekday} vs ausente {week.vacationerEmbarkWeekday}
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-2 text-[10px] leading-snug text-[var(--app-text-muted)]">{week.reason}</p>
+      {week.badgeLabel && (
+        <p className="mt-1 text-[10px] font-semibold text-[var(--app-accent)]">{week.badgeLabel}</p>
+      )}
+    </div>
+  );
+}
+
+function PobStrip({
+  dailyPob,
+  targetPob,
+}: {
+  dailyPob: CoverageCombinationView['dailyPob'];
+  targetPob: number;
+}) {
+  if (!dailyPob.length) return null;
+  return (
+    <div className="mt-2">
+      <p className="mb-1.5 text-[10px] font-semibold tracking-wide text-[var(--app-text-muted)] uppercase">
+        POB dia a dia (meta {targetPob})
+      </p>
+      <div className="flex flex-wrap gap-1">
+        {dailyPob.map((d) => {
+          const tone = d.atTarget
+            ? 'bg-emerald-500/20 text-emerald-800 border-emerald-500/40 dark:text-emerald-200'
+            : d.pob < targetPob
+              ? 'bg-amber-500/15 text-amber-900 border-amber-500/35 dark:text-amber-200'
+              : 'bg-sky-500/15 text-sky-900 border-sky-500/35 dark:text-sky-200';
+          return (
+            <div
+              key={d.date}
+              title={`${d.weekday} ${d.dayLabel}: POB ${d.pob}${d.covered ? ' · coberto' : ' · sem dobra'}`}
+              className={`min-w-[2.4rem] rounded-md border px-1 py-1 text-center ${tone}`}
+            >
+              <div className="text-[9px] opacity-80">{d.weekday}</div>
+              <div className="text-[9px] font-semibold">{d.dayLabel}</div>
+              <div className="text-[11px] font-bold">{d.pob}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function coveragesFromCombination(
@@ -105,6 +216,8 @@ export default function VacationForm({ plan, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [alignMsg, setAlignMsg] = useState('');
   const [autoFillDone, setAutoFillDone] = useState(Boolean(plan));
+  const [expandedComboId, setExpandedComboId] = useState<string | null>(null);
+  const [showAllCombos, setShowAllCombos] = useState(false);
 
   const activeColabs = useMemo(
     () =>
@@ -181,9 +294,6 @@ export default function VacationForm({ plan, onClose }: Props) {
       .map((c) => ({ value: c.id, label: `${c.name} (${c.role})` })),
   ];
 
-  const nameOf = (id: string | null) =>
-    id ? activeColabs.find((c) => c.id === id)?.name ?? id : '—';
-
   const handleCollabChange = (id: string) => {
     setCollabId(id);
     setStartDate('');
@@ -224,6 +334,11 @@ export default function VacationForm({ plan, onClose }: Props) {
   const applyCombination = (combo: CoverageCombinationView) => {
     if (!coverageResult) return;
     setCoverages(coveragesFromCombination(combo, coverageResult.slots));
+    setExpandedComboId(combo.id);
+  };
+
+  const toggleCombo = (combo: CoverageCombinationView) => {
+    setExpandedComboId((prev) => (prev === combo.id ? null : combo.id));
   };
 
   const handleCoverageChange = (idx: number, field: keyof VacationCoverage, value: string) => {
@@ -508,44 +623,106 @@ export default function VacationForm({ plan, onClose }: Props) {
                 </div>
               )}
 
-              {coverageResult && coverageResult.combinations.length > 1 && (
+              {coverageResult && coverageResult.combinations.length > 0 && (
                 <div>
-                  <p className="mb-2 text-[11px] font-semibold tracking-wide text-[var(--app-text-muted)] uppercase">
-                    Outras combinações
-                  </p>
-                  <div className="space-y-1.5">
-                    {coverageResult.combinations.slice(0, 5).map((combo, idx) => (
-                      <button
-                        key={`${combo.week1CollaboratorId}-${combo.week2CollaboratorId}-${idx}`}
-                        type="button"
-                        onClick={() => applyCombination(combo)}
-                        className="flex w-full cursor-pointer items-start justify-between gap-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-left transition hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-soft)]"
-                      >
-                        <div>
-                          <p className="text-[11px] font-semibold text-[var(--app-text)]">
-                            {idx === 0 ? '★ Recomendada' : `Opção ${idx + 1}`}
-                            {' · '}
-                            {combo.daysAtTargetPob}/{combo.totalMissedDays} dias POB{' '}
-                            {coverageResult.targetPob}
-                          </p>
-                          <p className="text-[10px] text-[var(--app-text-muted)]">
-                            1ª: {nameOf(combo.week1CollaboratorId)}
-                            {combo.week1Start
-                              ? ` (${formatDateBR(combo.week1Start)}→${formatDateBR(combo.week1End || '')})`
-                              : ''}
-                            {' · '}
-                            2ª: {nameOf(combo.week2CollaboratorId)}
-                            {combo.week2Start
-                              ? ` (${formatDateBR(combo.week2Start)}→${formatDateBR(combo.week2End || '')})`
-                              : ''}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-[10px] font-semibold text-[var(--app-accent)]">
-                          Aplicar
-                        </span>
-                      </button>
-                    ))}
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold tracking-wide text-[var(--app-text-muted)] uppercase">
+                      Possibilidades ({coverageResult.combinations.length})
+                    </p>
+                    <p className="text-[10px] text-[var(--app-text-muted)]">
+                      Clique para ver o detalhe · 1 pessoa por semana
+                    </p>
                   </div>
+                  <div className="max-h-[28rem] space-y-1.5 overflow-y-auto pr-0.5">
+                    {(showAllCombos
+                      ? coverageResult.combinations
+                      : coverageResult.combinations.slice(0, 10)
+                    ).map((combo, idx) => {
+                      const open = expandedComboId === combo.id;
+                      return (
+                        <div
+                          key={combo.id}
+                          className="overflow-hidden rounded-xl border bg-[var(--app-surface)] transition"
+                          style={{
+                            borderColor: open ? 'var(--app-accent)' : 'var(--app-border)',
+                            boxShadow: open ? '0 0 0 1px var(--app-accent-soft)' : undefined,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleCombo(combo)}
+                            className="flex w-full cursor-pointer items-start justify-between gap-2 px-3 py-2.5 text-left transition hover:bg-[var(--app-accent-soft)]/50"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold text-[var(--app-text)]">
+                                {idx === 0 ? '★ Recomendada' : `Opção ${idx + 1}`}
+                                {' · '}
+                                {combo.daysAtTargetPob}/{combo.totalMissedDays} dias com POB{' '}
+                                {coverageResult.targetPob}
+                                {combo.uncoveredDays > 0
+                                  ? ` · ${combo.uncoveredDays}d descobertos`
+                                  : ''}
+                              </p>
+                              <p className="mt-0.5 truncate text-[10px] text-[var(--app-text-muted)]">
+                                1ª: {combo.week1?.collaboratorName ?? '—'}
+                                {combo.week1
+                                  ? ` (${strategyLabel(combo.week1.strategy).toLowerCase()}, ${combo.week1.coveredDays}d)`
+                                  : ''}
+                                {' · '}
+                                2ª: {combo.week2?.collaboratorName ?? '—'}
+                                {combo.week2
+                                  ? ` (${strategyLabel(combo.week2.strategy).toLowerCase()}, ${combo.week2.coveredDays}d)`
+                                  : ''}
+                              </p>
+                            </div>
+                            {open ? (
+                              <ChevronUp className="mt-0.5 size-4 shrink-0 text-[var(--app-accent)]" />
+                            ) : (
+                              <ChevronDown className="mt-0.5 size-4 shrink-0 text-[var(--app-text-muted)]" />
+                            )}
+                          </button>
+
+                          {open && (
+                            <div className="space-y-2 border-t border-[var(--app-border)] px-3 py-3">
+                              <p className="text-[11px] text-[var(--app-text)]">{combo.summary}</p>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <WeekDetailCard title="1ª semana" week={combo.week1} />
+                                <WeekDetailCard title="2ª semana" week={combo.week2} />
+                              </div>
+                              <PobStrip
+                                dailyPob={combo.dailyPob}
+                                targetPob={coverageResult.targetPob}
+                              />
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                <p className="text-[10px] text-[var(--app-text-muted)]">
+                                  Desvio médio do POB: {combo.avgAbsPobDelta.toFixed(2)}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => applyCombination(combo)}
+                                  className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-[var(--app-accent)] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:opacity-90"
+                                >
+                                  <Sparkles className="size-3.5" />
+                                  Aplicar esta combinação
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {coverageResult.combinations.length > 10 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllCombos((v) => !v)}
+                      className="mt-2 cursor-pointer text-[11px] font-semibold text-[var(--app-accent)] underline"
+                    >
+                      {showAllCombos
+                        ? 'Mostrar menos'
+                        : `Ver todas as ${coverageResult.combinations.length} possibilidades`}
+                    </button>
+                  )}
                 </div>
               )}
 

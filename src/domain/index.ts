@@ -19,6 +19,8 @@ export {
   type CandidateRecommendation,
   type CoverageSlotSuggestion,
   type CoverageCombinationView,
+  type CoverageWeekDetailView,
+  type CoverageDailyPobView,
   type CoverageSuggestionsResult,
   type DailyCoverageDetail,
   type CollaboratorCoverageScheduleAnalysis,
