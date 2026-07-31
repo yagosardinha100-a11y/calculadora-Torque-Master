@@ -1,25 +1,20 @@
-import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { CalendarDays } from 'lucide-react';
+import { useAuth } from '../data/AuthProvider';
 
-export const ProtectedRoute: React.FC = () => {
+export function ProtectedRoute() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white p-4 font-sans">
-        <div className="p-3 bg-blue-600 rounded-2xl shadow-lg animate-bounce mb-3">
-          <CalendarDays className="w-8 h-8 text-white" />
-        </div>
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Restaurando sessão...</p>
+      <div className="flex h-screen items-center justify-center" style={{ background: 'var(--app-bg)' }}>
+        <span className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-current border-t-transparent" style={{ color: 'var(--app-accent)' }} />
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
 
   return <Outlet />;
-};
+}
+
+export default ProtectedRoute;

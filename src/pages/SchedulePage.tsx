@@ -1,182 +1,124 @@
 import { useState } from 'react';
-import { ScheduleGrid } from '../components/ScheduleGrid';
-import { Button } from '../components/ui/Button';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Users } from 'lucide-react';
-import { format, addMonths, subMonths, startOfToday } from 'date-fns';
+import { addMonths, subMonths, startOfMonth, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useData } from '../context/DataContext';
-import { useTheme } from '../context/ThemeContext';
-import { cn } from '../lib/utils';
-import { ScheduleSkeleton } from '../components/ui/Skeleton';
-import { StatusChip } from '../components/ui/StatusChip';
-import type { Status } from '../types';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import ScheduleGrid from '../components/ScheduleGrid';
+import type { Role } from '../domain/types';
 
-const STATUS_LEGEND: Status[] = [
-  'Escala',
-  'Dobra',
-  'Férias',
-  'Exame Médico',
-  'Treinamento',
-  'No Show',
-  'Folga',
+const MONTHS_OPTIONS = [1, 3, 6, 12] as const;
+type MonthsCount = typeof MONTHS_OPTIONS[number];
+
+const ROLES: Role[] = [
+  'Supervisor',
+  'Chefe Mecânica',
+  'Mecânico',
+  'Assistente Mecânico',
+  'Coordenador',
+  'Outros',
 ];
 
-
 export default function SchedulePage() {
-  const { isLight } = useTheme();
-  const { collaborators, loading } = useData();
-  const [startMonth, setStartMonth] = useState(() => startOfToday());
-  const [monthsCount, setMonthsCount] = useState<number>(12);
-  const [showLegendMobile, setShowLegendMobile] = useState(false);
+  const [startMonth, setStartMonth] = useState(() => startOfMonth(new Date()));
+  const [monthsCount, setMonthsCount] = useState<MonthsCount>(3);
+  const [searchName, setSearchName] = useState('');
+  const [filterRole, setFilterRole] = useState('');
 
-  if (loading) {
-    return <ScheduleSkeleton />;
-  }
-
-  const activeCollaboratorsCount = collaborators.filter((c) => c.active !== false).length;
-
-  const nextMonth = () => setStartMonth((prev) => addMonths(prev, 1));
-  const prevMonth = () => setStartMonth((prev) => subMonths(prev, 1));
-  const nextPeriod = () => setStartMonth((prev) => addMonths(prev, monthsCount));
-  const prevPeriod = () => setStartMonth((prev) => subMonths(prev, monthsCount));
-  const goToToday = () => setStartMonth(startOfToday());
-
-  const controlBtn = cn(
-    'flex h-8 items-center justify-center rounded-lg border px-2 transition-colors',
-    isLight
-      ? 'border-[var(--app-border)] bg-white text-[var(--app-text-muted)] hover:bg-[var(--app-surface-muted)] hover:text-[var(--app-text)]'
-      : 'border-[var(--app-border)] bg-[var(--app-surface-muted)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]',
-  );
+  const monthLabel = format(startMonth, 'MMMM yyyy', { locale: ptBR });
+  const capitalized = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
   return (
-    <div className="mx-auto flex min-h-full max-w-[1700px] flex-col gap-3 p-3 sm:gap-4 sm:p-4">
-      {/* Toolbar — one job: navigate the schedule */}
-      <div className="app-surface flex flex-col gap-3 rounded-2xl p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--app-text)] sm:text-2xl">
-            Escala
-          </h1>
-          <p className="mt-0.5 flex items-center gap-2 text-[13px] text-[var(--app-text-muted)]">
-            <Users className="size-3.5 shrink-0 text-[var(--app-accent)]" />
-            {activeCollaboratorsCount} mecânicos ativos · ciclo 14×14
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div
-            className={cn(
-              'flex items-center gap-1 overflow-x-auto rounded-xl border p-1 scrollbar-none',
-              'border-[var(--app-border)] bg-[var(--app-surface-muted)]',
-            )}
-          >
-            <span className="shrink-0 px-2 text-[10px] font-semibold tracking-wide text-[var(--app-text-faint)] uppercase">
-              Visão
-            </span>
-            {[1, 3, 6, 12].map((count) => (
-              <button
-                key={count}
-                type="button"
-                onClick={() => setMonthsCount(count)}
-                className={cn(
-                  'shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                  monthsCount === count
-                    ? 'bg-[var(--app-accent)] text-white'
-                    : 'text-[var(--app-text-muted)] hover:bg-[var(--app-surface)] hover:text-[var(--app-text)]',
-                )}
-              >
-                {count === 1 ? '1M' : `${count}M`}
-              </button>
-            ))}
-          </div>
-
-          <div
-            className={cn(
-              'flex items-center gap-1 rounded-xl border p-1',
-              'border-[var(--app-border)] bg-[var(--app-surface-muted)]',
-            )}
-          >
-            <button type="button" className={controlBtn} onClick={prevPeriod} title={`Voltar ${monthsCount} meses`}>
-              <ChevronLeft className="size-3.5" />
-              <ChevronLeft className="-ml-2 size-3.5" />
-            </button>
-            <button type="button" className={controlBtn} onClick={prevMonth} title="Mês anterior">
-              <ChevronLeft className="size-3.5" />
-            </button>
-
-            <div className="flex min-w-[120px] items-center justify-center gap-1.5 px-2 text-[13px] font-semibold capitalize sm:min-w-[160px]">
-              <CalendarIcon className="size-3.5 shrink-0 text-[var(--app-accent)]" />
-              <span className="truncate">
-                {monthsCount === 1
-                  ? format(startMonth, "MMMM 'de' yyyy", { locale: ptBR })
-                  : `${format(startMonth, 'MMM/yy', { locale: ptBR })} – ${format(addMonths(startMonth, monthsCount - 1), 'MMM/yy', { locale: ptBR })}`}
-              </span>
-            </div>
-
-            <button type="button" className={controlBtn} onClick={nextMonth} title="Próximo mês">
-              <ChevronRight className="size-3.5" />
-            </button>
-            <button type="button" className={controlBtn} onClick={nextPeriod} title={`Avançar ${monthsCount} meses`}>
-              <ChevronRight className="size-3.5" />
-              <ChevronRight className="-ml-2 size-3.5" />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-end gap-2">
-            <input
-              type="month"
-              value={format(startMonth, 'yyyy-MM')}
-              onChange={(e) => {
-                if (e.target.value) {
-                  const [year, month] = e.target.value.split('-').map(Number);
-                  setStartMonth(new Date(year, month - 1, 1));
-                }
-              }}
-              className={cn(
-                'h-8 cursor-pointer rounded-lg border px-2 text-xs font-semibold',
-                'border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)]',
-                'focus:outline-none focus:ring-2 focus:ring-[var(--app-accent-soft)]',
-              )}
-              title="Ir para mês/ano"
-            />
-            <button
-              type="button"
-              onClick={goToToday}
-              className="h-8 rounded-lg bg-[var(--app-accent)] px-3 text-xs font-semibold text-white transition-colors hover:bg-[var(--app-accent-hover)]"
-            >
-              Hoje
-            </button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowLegendMobile((prev) => !prev)}
-              className="gap-1 border border-[var(--app-border)] md:hidden"
-            >
-              <Info className="size-3.5" />
-              Legenda
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col">
-        <ScheduleGrid startMonth={startMonth} monthsCount={monthsCount} />
-      </div>
-
+    <div className="flex h-full flex-col" style={{ background: 'var(--app-bg)' }}>
+      {/* Toolbar */}
       <div
-        className={cn(
-          'app-surface shrink-0 rounded-2xl p-3 text-xs',
-          showLegendMobile ? 'block' : 'hidden md:block',
-        )}
+        className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2 border-b"
+        style={{ borderColor: 'var(--app-border)', background: 'var(--app-surface)' }}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-[var(--app-text-faint)] uppercase">
-            <Info className="size-3.5 text-[var(--app-accent)]" />
-            Legenda
-          </span>
-          {STATUS_LEGEND.map((status) => (
-            <StatusChip key={status} status={status} />
+        {/* Month navigation */}
+        <button
+          className="p-1 rounded hover:opacity-70 transition-opacity"
+          onClick={() => setStartMonth(m => subMonths(m, 1))}
+          style={{ color: 'var(--app-text)' }}
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-sm font-semibold min-w-[130px] text-center" style={{ color: 'var(--app-text)' }}>
+          {capitalized}
+        </span>
+        <button
+          className="p-1 rounded hover:opacity-70 transition-opacity"
+          onClick={() => setStartMonth(m => addMonths(m, 1))}
+          style={{ color: 'var(--app-text)' }}
+        >
+          <ChevronRight size={16} />
+        </button>
+
+        {/* Months count */}
+        <div className="flex items-center gap-1">
+          {MONTHS_OPTIONS.map(n => (
+            <button
+              key={n}
+              onClick={() => setMonthsCount(n)}
+              className="px-2 py-0.5 rounded text-xs font-medium transition-colors"
+              style={{
+                background: monthsCount === n ? 'var(--app-accent)' : 'var(--app-surface-muted)',
+                color: monthsCount === n ? '#fff' : 'var(--app-text-muted)',
+                border: '1px solid var(--app-border)',
+              }}
+            >
+              {n}M
+            </button>
           ))}
         </div>
+
+        {/* Divider */}
+        <div className="hidden sm:block h-4 w-px" style={{ background: 'var(--app-border)' }} />
+
+        {/* Search */}
+        <div className="relative flex items-center">
+          <Search size={13} className="absolute left-2 pointer-events-none" style={{ color: 'var(--app-text-faint)' }} />
+          <input
+            type="text"
+            placeholder="Buscar colaborador…"
+            value={searchName}
+            onChange={e => setSearchName(e.target.value)}
+            className="pl-7 pr-2 py-1 rounded-md border text-xs focus:outline-none focus:ring-1"
+            style={{
+              width: 170,
+              background: 'var(--app-surface)',
+              borderColor: 'var(--app-border)',
+              color: 'var(--app-text)',
+              ['--tw-ring-color' as string]: 'var(--app-accent)',
+            }}
+          />
+        </div>
+
+        {/* Role filter */}
+        <select
+          value={filterRole}
+          onChange={e => setFilterRole(e.target.value)}
+          className="rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-1"
+          style={{
+            background: 'var(--app-surface)',
+            borderColor: 'var(--app-border)',
+            color: 'var(--app-text)',
+            ['--tw-ring-color' as string]: 'var(--app-accent)',
+          }}
+        >
+          <option value="">Todas as funções</option>
+          {ROLES.map(r => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Grid */}
+      <div className="flex-1 overflow-hidden">
+        <ScheduleGrid
+          startMonth={startMonth}
+          monthsCount={monthsCount}
+          searchName={searchName}
+          filterRole={filterRole}
+        />
       </div>
     </div>
   );

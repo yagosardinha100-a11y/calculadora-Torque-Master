@@ -1,223 +1,169 @@
-import { useState, useEffect, type FormEvent } from 'react';
-import { useData } from '../context/DataContext';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Select } from './ui/Select';
-import { X, Trash2, Save, Calendar, User, Info } from 'lucide-react';
-import type { CellData } from '../hooks/useSchedule';
-import type { Status } from '../types';
-import { ConfirmModal } from './ui/ConfirmModal';
-import { FieldLabel } from './ui/PageChrome';
+import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+import { useData } from '../data/DataProvider';
+import type { Collaborator, ScheduleEvent, Status } from '../domain/types';
+import Button from './ui/Button';
+import Input from './ui/Input';
+import Select from './ui/Select';
 
-const STATUS_OPTIONS: Status[] = [
-  'Escala',
-  'Dobra',
-  'Folga',
-  'Férias',
-  'Treinamento',
-  'Exame Médico',
-  'No Show',
+const STATUS_OPTIONS: { value: Status; label: string }[] = [
+  { value: 'Escala',       label: 'Escala' },
+  { value: 'Dobra',        label: 'Dobra' },
+  { value: 'Folga',        label: 'Folga' },
+  { value: 'Férias',       label: 'Férias' },
+  { value: 'Treinamento',  label: 'Treinamento' },
+  { value: 'Exame Médico', label: 'Exame Médico' },
+  { value: 'No Show',      label: 'No Show' },
 ];
 
 interface EventSidebarProps {
-  cell: CellData | null;
-  collaboratorName: string;
+  collaborator: Collaborator | null;
+  date: string; // YYYY-MM-DD
+  event?: ScheduleEvent | null;
   onClose: () => void;
 }
 
-export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarProps) {
+export default function EventSidebar({ collaborator, date, event, onClose }: EventSidebarProps) {
   const { addEvent, updateEvent, deleteEvent } = useData();
-  const [status, setStatus] = useState<Status>('Dobra');
-  const [endDate, setEndDate] = useState('');
-  const [motive, setMotive] = useState('');
-  const [note, setNote] = useState('');
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
+  const [startDate, setStartDate] = useState(event?.startDate ?? date);
+  const [endDate, setEndDate] = useState(event?.endDate ?? date);
+  const [status, setStatus] = useState<Status>(event?.status ?? 'Escala');
+  const [note, setNote] = useState(event?.note ?? '');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (cell) {
-      if (cell.event) {
-        setStatus(cell.event.status);
-        setEndDate(cell.event.endDate);
-        setMotive(cell.event.motive || '');
-        setNote(cell.event.note || '');
-      } else {
-        setStatus('Dobra');
-        setEndDate(cell.dateStr);
-        setMotive('');
-        setNote('');
-      }
-    }
-  }, [cell]);
+    setStartDate(event?.startDate ?? date);
+    setEndDate(event?.endDate ?? date);
+    setStatus(event?.status ?? 'Escala');
+    setNote(event?.note ?? '');
+    setError('');
+  }, [event, date]);
 
-  if (!cell) return null;
+  if (!collaborator) return null;
 
-  const handleSave = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!endDate) return;
-
+  const handleSave = async () => {
+    setError('');
+    setSaving(true);
     try {
-      if (cell.event) {
-        await updateEvent(cell.event.id, { status, endDate, motive, note });
+      if (event) {
+        await updateEvent(event.id, { startDate, endDate, status, note });
       } else {
-        await addEvent({
-          collaboratorId: cell.collaboratorId,
-          startDate: cell.dateStr,
-          endDate,
-          status,
-          motive,
-          note,
-        });
+        await addEvent({ collaboratorId: collaborator.id, startDate, endDate, status, note });
       }
       onClose();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Não foi possível salvar o evento.');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar evento.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (cell?.event) {
-      await deleteEvent(cell.event.id);
+    if (!event) return;
+    if (!confirm('Excluir este evento?')) return;
+    setSaving(true);
+    try {
+      await deleteEvent(event.id);
       onClose();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro ao excluir evento.');
+      setSaving(false);
     }
   };
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      {/* Backdrop */}
       <div
-        className="fixed top-0 right-0 z-50 flex h-full w-full flex-col border-l border-[var(--app-border)] sm:w-[420px]"
-        style={{ background: 'var(--app-surface)' }}
+        className="fixed inset-0 z-40"
+        style={{ background: 'rgba(0,0,0,0.25)' }}
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div
+        className="fixed right-0 top-0 z-50 flex h-full w-80 flex-col shadow-xl"
+        style={{ background: 'var(--app-surface)', borderLeft: '1px solid var(--app-border)' }}
       >
+        {/* Header */}
         <div
-          className="flex items-center justify-between border-b border-white/10 px-4 py-4 text-white"
-          style={{ background: 'var(--app-header)' }}
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{ borderColor: 'var(--app-border)' }}
         >
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-[var(--app-nav-active)] text-white">
-              <Calendar className="size-5" />
-            </div>
-            <div>
-              <h2 className="font-display text-[14px] font-semibold">Editar dia</h2>
-              <p className="text-[12px] text-white/65">{collaboratorName}</p>
-            </div>
+          <div>
+            <p className="text-xs font-semibold font-display" style={{ color: 'var(--app-text)' }}>
+              {collaborator.name}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--app-text-muted)' }}>{collaborator.role}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <X className="size-5" />
+          <button onClick={onClose} className="p-1 rounded hover:opacity-70">
+            <X size={16} style={{ color: 'var(--app-text-muted)' }} />
           </button>
         </div>
 
-        <div className="flex-1 space-y-5 overflow-y-auto p-5">
-          <div className="space-y-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-            <div className="flex items-center justify-between text-[12px]">
-              <span className="flex items-center gap-1.5 font-medium text-[var(--app-text-muted)]">
-                <User className="size-3.5 text-[var(--app-accent)]" />
-                Integrante
-              </span>
-              <span className="font-semibold text-[var(--app-text)]">{collaboratorName}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 border-t border-[var(--app-border)] pt-2 text-[12px]">
-              <div>
-                <span className="block text-[10px] font-semibold tracking-wider text-[var(--app-text-faint)] uppercase">
-                  Início
-                </span>
-                <span className="mt-0.5 block font-semibold text-[var(--app-text)]">
-                  {new Date(cell.dateStr + 'T12:00:00').toLocaleDateString('pt-BR')}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[10px] font-semibold tracking-wider text-[var(--app-text-faint)] uppercase">
-                  Status atual
-                </span>
-                <span className="mt-0.5 block font-semibold text-[var(--app-accent)]">
-                  {cell.event ? 'Evento manual' : cell.status}
-                </span>
-              </div>
-            </div>
-          </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--app-text)' }}>
+            {event ? 'Editar Evento' : 'Novo Evento'}
+          </h3>
 
-          <form id="event-form" onSubmit={handleSave} className="space-y-4">
-            <div>
-              <FieldLabel>Novo status</FieldLabel>
-              <Select value={status} onChange={(e) => setStatus(e.target.value as Status)} required>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </Select>
-            </div>
+          <Select
+            label="Status"
+            value={status}
+            onChange={e => setStatus(e.target.value as Status)}
+            options={STATUS_OPTIONS}
+          />
 
-            <div>
-              <FieldLabel>Data final</FieldLabel>
-              <Input
-                type="date"
-                value={endDate}
-                min={cell.dateStr}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
-              <p className="mt-1.5 flex items-center gap-1 text-[11px] text-[var(--app-text-faint)]">
-                <Info className="size-3 shrink-0 text-[var(--app-accent)]" />
-                Aplicado da data inicial até esta data.
-              </p>
-            </div>
+          <Input
+            label="Data Início"
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+          />
 
-            {status === 'Dobra' ? (
-              <div>
-                <FieldLabel>Motivo da dobra</FieldLabel>
-                <Input
-                  value={motive}
-                  onChange={(e) => setMotive(e.target.value)}
-                  placeholder="Ex: Cobertura emergencial de férias"
-                />
-              </div>
-            ) : null}
+          <Input
+            label="Data Fim"
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+          />
 
-            <div>
-              <FieldLabel>Observações</FieldLabel>
-              <textarea
-                className="min-h-[90px] w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-faint)] focus:border-[var(--app-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent-soft)]"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Detalhes adicionais…"
-              />
-            </div>
-          </form>
+          <Input
+            label="Observação"
+            type="text"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Opcional"
+          />
+
+          {error && (
+            <p className="rounded-md border px-3 py-2 text-xs" style={{ color: 'var(--app-danger)', borderColor: 'var(--app-danger)', background: 'rgba(200,30,74,0.06)' }}>
+              {error}
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          {cell.event ? (
-            <Button type="button" variant="danger" onClick={() => setShowConfirmDelete(true)} className="gap-2 text-xs">
-              <Trash2 className="size-4" />
-              Remover
+        {/* Footer */}
+        <div
+          className="flex items-center gap-2 border-t px-4 py-3"
+          style={{ borderColor: 'var(--app-border)' }}
+        >
+          {event && (
+            <Button variant="danger" size="sm" onClick={handleDelete} disabled={saving}>
+              Excluir
             </Button>
-          ) : (
-            <div />
           )}
-          <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={onClose} className="text-xs">
-              Cancelar
-            </Button>
-            <Button type="submit" form="event-form" className="gap-2 text-xs">
-              <Save className="size-4" />
-              Salvar
-            </Button>
-          </div>
+          <div className="flex-1" />
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? 'Salvando…' : 'Salvar'}
+          </Button>
         </div>
       </div>
-
-      <ConfirmModal
-        isOpen={showConfirmDelete}
-        title="Excluir evento"
-        message="Deseja remover este evento e restaurar o status automático da escala?"
-        confirmText="Sim, remover"
-        onClose={() => setShowConfirmDelete(false)}
-        onConfirm={handleDelete}
-      />
     </>
   );
 }

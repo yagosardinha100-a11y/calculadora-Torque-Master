@@ -45,7 +45,7 @@ export function ConfirmModal({
         <p className="mt-3 text-[13px] leading-relaxed text-[var(--app-text-muted)]">{message}</p>
 
         <div className="mt-6 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={onClose}>
             {cancelText}
           </Button>
           <Button

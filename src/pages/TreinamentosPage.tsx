@@ -1,379 +1,195 @@
-import { useState, type FormEvent } from 'react';
-import { useData } from '../context/DataContext';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
-import { format, parseISO, differenceInCalendarDays, isBefore } from 'date-fns';
-import { GraduationCap, Plus, Trash2, Search, AlertTriangle, CheckCircle2, Clock, Filter } from 'lucide-react';
-import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { cn } from '../lib/utils';
-import { GenericPageSkeleton } from '../components/ui/Skeleton';
-import {
-  EmptyTableRow,
-  FieldLabel,
-  MetricCard,
-  ModalShell,
-  PageHeader,
-  PageShell,
-  SectionSurface,
-  TableHead,
-} from '../components/ui/PageChrome';
+import { useState } from 'react';
+import { format, parseISO, differenceInDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Plus, Trash2 } from 'lucide-react';
+import { useData } from '../data/DataProvider';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 
-const COMMON_COURSES = [
-  'CBSP (Salvavatagem - Solas)',
-  'HUET (Escape de Aeronave Submersa)',
-  'NR-33 (Espaço Confinado)',
-  'NR-35 (Trabalho em Altura)',
-  'NR-13 (Caldeiras e Vasos de Pressão)',
-  'NR-10 (Segurança em Instalações Elétricas)',
-  'Rigging / Movimentação de Cargas',
-  'Primeiros Socorros Offshore',
-  'Outro Treinamento',
-];
+function fmtDate(s: string) {
+  try { return format(parseISO(s), 'dd/MM/yyyy', { locale: ptBR }); } catch { return s; }
+}
+
+function expiryStatus(expiryDate: string): 'expired' | 'expiring' | 'valid' {
+  const today = new Date();
+  const exp = parseISO(expiryDate);
+  const days = differenceInDays(exp, today);
+  if (days < 0) return 'expired';
+  if (days <= 90) return 'expiring';
+  return 'valid';
+}
+
+const STATUS_BADGE: Record<ReturnType<typeof expiryStatus>, { label: string; color: string; bg: string }> = {
+  expired:  { label: 'Vencido',  color: 'var(--app-danger)',        bg: 'rgba(200,30,74,0.12)' },
+  expiring: { label: 'Vencendo', color: 'var(--status-dobra)',      bg: 'rgba(217,119,6,0.12)' },
+  valid:    { label: 'Válido',   color: 'var(--status-escala)',     bg: 'rgba(13,148,136,0.12)' },
+};
 
 export default function TreinamentosPage() {
-  const { collaborators, trainings, loading, addTraining, deleteTraining } = useData();
+  const { trainings, collaborators, addTraining, deleteTraining } = useData();
+  const [showForm, setShowForm] = useState(false);
+  const [collabId, setCollabId] = useState('');
+  const [courseName, setCourseName] = useState('');
+  const [issueDate, setIssueDate] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [certNumber, setCertNumber] = useState('');
+  const [note, setNote] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [searchName, setSearchName] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  if (loading) {
-    return <GenericPageSkeleton />;
-  }
+  const colabOptions = [
+    { value: '', label: 'Selecionar colaborador…' },
+    ...collaborators.filter(c => c.active !== false).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(c => ({ value: c.id, label: c.name })),
+  ];
 
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'valid' | 'expiring' | 'expired'>('all');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const statusFilterOptions = [
+    { value: '', label: 'Todos os status' },
+    { value: 'expired', label: 'Vencidos' },
+    { value: 'expiring', label: 'Vencendo' },
+    { value: 'valid', label: 'Válidos' },
+  ];
 
-  // Form state
-  const [formColabId, setFormColabId] = useState('');
-  const [formCourse, setFormCourse] = useState(COMMON_COURSES[0]);
-  const [formCustomCourse, setFormCustomCourse] = useState('');
-  const [formIssueDate, setFormIssueDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [formExpiryDate, setFormExpiryDate] = useState('');
-  const [formCertNum, setFormCertNum] = useState('');
+  const filtered = trainings
+    .filter(t => {
+      if (filterStatus) {
+        const st = expiryStatus(t.expiryDate);
+        if (st !== filterStatus) return false;
+      }
+      if (searchName) {
+        const colab = collaborators.find(c => c.id === t.collaboratorId);
+        if (!colab?.name.toLowerCase().includes(searchName.toLowerCase()) &&
+            !t.courseName.toLowerCase().includes(searchName.toLowerCase())) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
 
-  const handleAddTraining = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!formColabId || !formIssueDate || !formExpiryDate) return;
-
-    const courseName = formCourse === 'Outro Treinamento' ? (formCustomCourse || 'Treinamento Técnico') : formCourse;
-
-    await addTraining({
-      collaboratorId: formColabId,
-      courseName,
-      issueDate: formIssueDate,
-      expiryDate: formExpiryDate,
-      certificateNumber: formCertNum || undefined,
-    });
-
-    setShowAddModal(false);
-    setFormCertNum('');
-    setFormCustomCourse('');
-  };
-
-  const handleDelete = async (id: string) => {
-    await deleteTraining(id);
-    setDeleteId(null);
-  };
-
-  const today = new Date();
-
-  const getTrainingStatus = (expiryDateStr: string): 'valid' | 'expiring' | 'expired' => {
+  const handleSave = async () => {
+    if (!collabId) { setError('Selecione um colaborador.'); return; }
+    if (!courseName.trim()) { setError('Nome do curso obrigatório.'); return; }
+    if (!issueDate || !expiryDate) { setError('Datas obrigatórias.'); return; }
+    setSaving(true);
+    setError('');
     try {
-      const exp = parseISO(expiryDateStr);
-      if (isBefore(exp, today)) return 'expired';
-      const daysLeft = differenceInCalendarDays(exp, today);
-      if (daysLeft <= 45) return 'expiring';
-      return 'valid';
-    } catch {
-      return 'valid';
+      await addTraining({
+        collaboratorId: collabId,
+        courseName: courseName.trim(),
+        issueDate,
+        expiryDate,
+        certificateNumber: certNumber || undefined,
+        note: note || undefined,
+      });
+      setShowForm(false);
+      setCollabId(''); setCourseName(''); setIssueDate(''); setExpiryDate(''); setCertNumber(''); setNote('');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Filter
-  const filteredTrainings = trainings.filter(t => {
-    const colab = collaborators.find(c => c.id === t.collaboratorId);
-    const colabName = colab ? colab.name.toLowerCase() : '';
-    const matchesSearch = colabName.includes(search.toLowerCase()) || t.courseName.toLowerCase().includes(search.toLowerCase());
-    
-    const status = getTrainingStatus(t.expiryDate);
-    const matchesStatus = statusFilter === 'all' || status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const validCount = trainings.filter(t => getTrainingStatus(t.expiryDate) === 'valid').length;
-  const expiringCount = trainings.filter(t => getTrainingStatus(t.expiryDate) === 'expiring').length;
-  const expiredCount = trainings.filter(t => getTrainingStatus(t.expiryDate) === 'expired').length;
+  const handleDelete = async (id: string) => {
+    if (!confirm('Excluir treinamento?')) return;
+    try { await deleteTraining(id); }
+    catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erro.'); }
+  };
 
   return (
-    <PageShell wide>
-      <PageHeader
-        title="Treinamentos"
-        description="Certificações offshore, NRs e controle de validade."
-        icon={<GraduationCap className="size-5" />}
-        actions={
-          <Button onClick={() => setShowAddModal(true)} className="w-full gap-2 sm:w-auto">
-            <Plus className="size-4" />
-            Cadastrar Certificado
+    <div className="h-full overflow-y-auto p-4" style={{ background: 'var(--app-bg)' }}>
+      <div className="max-w-4xl mx-auto flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-lg font-semibold" style={{ color: 'var(--app-text)' }}>Treinamentos</h1>
+          <Button size="sm" onClick={() => { setShowForm(v => !v); setError(''); }}>
+            <Plus size={14} /> Novo Registro
           </Button>
-        }
-      />
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-        <div
-          className={cn(
-            'cursor-pointer rounded-2xl transition-all',
-            statusFilter === 'valid' && 'ring-2 ring-teal-500',
-          )}
-          onClick={() => setStatusFilter(statusFilter === 'valid' ? 'all' : 'valid')}
-        >
-          <MetricCard
-            label="Certificados Válidos"
-            value={
-              <span className="text-teal-700 dark:text-teal-300">{validCount} em dia</span>
-            }
-            icon={<CheckCircle2 className="size-5 text-teal-600 dark:text-teal-400" />}
-          />
         </div>
 
-        <div
-          className={cn(
-            'cursor-pointer rounded-2xl transition-all',
-            statusFilter === 'expiring' && 'ring-2 ring-amber-500',
-          )}
-          onClick={() => setStatusFilter(statusFilter === 'expiring' ? 'all' : 'expiring')}
-        >
-          <MetricCard
-            label="A Vencer (em 45 dias)"
-            value={
-              <span className="text-amber-700 dark:text-amber-300">{expiringCount} urgentes</span>
-            }
-            icon={<Clock className="size-5 text-amber-600 dark:text-amber-400" />}
-          />
-        </div>
-
-        <div
-          className={cn(
-            'cursor-pointer rounded-2xl transition-all',
-            statusFilter === 'expired' && 'ring-2 ring-rose-500',
-          )}
-          onClick={() => setStatusFilter(statusFilter === 'expired' ? 'all' : 'expired')}
-        >
-          <MetricCard
-            label="Certificados Vencidos"
-            value={
-              <span className="text-rose-700 dark:text-rose-300">{expiredCount} vencidos</span>
-            }
-            icon={<AlertTriangle className="size-5 text-rose-600 dark:text-rose-400" />}
-          />
-        </div>
-      </div>
-
-      <SectionSurface>
-        <div className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:w-72">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[var(--app-text-faint)]" />
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar por colaborador ou curso..."
-              className="pl-9 text-xs"
-            />
+        {showForm && (
+          <div className="rounded-lg border p-4 flex flex-col gap-3" style={{ background: 'var(--app-surface)', borderColor: 'var(--app-border)' }}>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Select label="Colaborador" value={collabId} onChange={e => setCollabId(e.target.value)} options={colabOptions} />
+              </div>
+              <div className="col-span-2">
+                <Input label="Curso / Certificação" value={courseName} onChange={e => setCourseName(e.target.value)} placeholder="ex: CBSP, HUET, NR-33…" />
+              </div>
+              <Input label="Data Emissão" type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
+              <Input label="Data Vencimento" type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
+              <Input label="Nº Certificado" value={certNumber} onChange={e => setCertNumber(e.target.value)} placeholder="Opcional" />
+              <Input label="Observação" value={note} onChange={e => setNote(e.target.value)} placeholder="Opcional" />
+            </div>
+            {error && <p className="text-xs" style={{ color: 'var(--app-danger)' }}>{error}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowForm(false)} disabled={saving}>Cancelar</Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Button>
+            </div>
           </div>
+        )}
 
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Filter className="size-4 shrink-0 text-[var(--app-text-faint)]" />
-            <Select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value as any)}
-              className="text-xs"
-            >
-              <option value="all">Todos os Status</option>
-              <option value="valid">Válidos (Em Dia)</option>
-              <option value="expiring">A Vencer (&le; 45 dias)</option>
-              <option value="expired">Vencidos</option>
-            </Select>
-          </div>
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="text"
+            placeholder="Buscar colaborador ou curso…"
+            value={searchName}
+            onChange={e => setSearchName(e.target.value)}
+            className="rounded-md border px-3 py-1.5 text-xs focus:outline-none focus:ring-1"
+            style={{ background: 'var(--app-surface)', borderColor: 'var(--app-border)', color: 'var(--app-text)', minWidth: 200, ['--tw-ring-color' as string]: 'var(--app-accent)' }}
+          />
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="rounded-md border px-2 py-1.5 text-xs focus:outline-none focus:ring-1"
+            style={{ background: 'var(--app-surface)', borderColor: 'var(--app-border)', color: 'var(--app-text)', ['--tw-ring-color' as string]: 'var(--app-accent)' }}
+          >
+            {statusFilterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
         </div>
-      </SectionSurface>
 
-      <SectionSurface>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <TableHead>
-              <tr>
-                <th className="px-4 py-3">Colaborador</th>
-                <th className="px-4 py-3">Curso / Treinamento</th>
-                <th className="px-4 py-3">Data Emissão</th>
-                <th className="px-4 py-3">Data Validade</th>
-                <th className="px-4 py-3">Situação</th>
-                <th className="px-4 py-3 text-right">Ações</th>
+        <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--app-border)' }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: 'var(--app-surface-muted)' }}>
+                {['Colaborador', 'Curso', 'Emissão', 'Vencimento', 'Status', 'Nº Cert.', ''].map(h => (
+                  <th key={h} className="px-3 py-2 text-left text-xs font-semibold" style={{ color: 'var(--app-text-muted)', borderBottom: '1px solid var(--app-border)' }}>{h}</th>
+                ))}
               </tr>
-            </TableHead>
-            <tbody className="divide-y divide-[var(--app-border)]">
-              {filteredTrainings.length === 0 ? (
-                <EmptyTableRow
-                  colSpan={6}
-                  title="Nenhum certificado cadastrado com os filtros aplicados."
-                  hint='Clique em "Cadastrar Certificado" para adicionar registros de CBSP, HUET ou NRs.'
-                />
-              ) : (
-                filteredTrainings.map(tr => {
-                  const colab = collaborators.find(c => c.id === tr.collaboratorId);
-                  const st = getTrainingStatus(tr.expiryDate);
-
-                  return (
-                    <tr key={tr.id} className="hover:bg-[var(--app-surface-muted)]">
-                      <td className="px-4 py-3 font-semibold text-[var(--app-text)]">
-                        {colab?.name || 'Não Encontrado'}
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-[var(--app-accent)]">
-                        {tr.courseName}
-                        {tr.certificateNumber && (
-                          <span className="mt-0.5 block font-mono text-[10px] text-[var(--app-text-faint)]">
-                            Nº {tr.certificateNumber}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-[var(--app-text-muted)]">
-                        {format(parseISO(tr.issueDate), 'dd/MM/yyyy')}
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-[var(--app-text)]">
-                        {format(parseISO(tr.expiryDate), 'dd/MM/yyyy')}
-                      </td>
-                      <td className="px-4 py-3">
-                        {st === 'valid' && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-teal-500/30 bg-teal-500/15 px-2.5 py-1 text-[10px] font-semibold text-teal-800 dark:text-teal-300">
-                            <CheckCircle2 className="size-3" /> Em Dia
-                          </span>
-                        )}
-                        {st === 'expiring' && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
-                            <Clock className="size-3" /> Renovação Próxima
-                          </span>
-                        )}
-                        {st === 'expired' && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/15 px-2.5 py-1 text-[10px] font-semibold text-rose-800 dark:text-rose-300">
-                            <AlertTriangle className="size-3" /> Vencido
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteId(tr.id)}
-                          className="text-[var(--app-danger)] hover:bg-rose-500/10"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })
+            </thead>
+            <tbody>
+              {filtered.map(t => {
+                const colab = collaborators.find(c => c.id === t.collaboratorId);
+                const st = expiryStatus(t.expiryDate);
+                const badge = STATUS_BADGE[st];
+                return (
+                  <tr key={t.id} className="transition-colors hover:bg-[var(--app-surface-muted)]" style={{ borderBottom: '1px solid var(--app-border)' }}>
+                    <td className="px-3 py-2 font-medium" style={{ color: 'var(--app-text)' }}>{colab?.name ?? t.collaboratorId}</td>
+                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--app-text)' }}>{t.courseName}</td>
+                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--app-text-muted)' }}>{fmtDate(t.issueDate)}</td>
+                    <td className="px-3 py-2 text-xs font-medium" style={{ color: badge.color }}>{fmtDate(t.expiryDate)}</td>
+                    <td className="px-3 py-2">
+                      <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
+                    </td>
+                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--app-text-muted)' }}>{t.certificateNumber ?? '—'}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button className="p-1 rounded hover:opacity-70" onClick={() => handleDelete(t.id)}>
+                        <Trash2 size={13} style={{ color: 'var(--app-danger)' }} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-center text-sm" style={{ color: 'var(--app-text-faint)' }}>Nenhum treinamento encontrado.</td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
-      </SectionSurface>
-
-      {showAddModal ? (
-        <ModalShell
-          title="Cadastrar Certificação / Treinamento"
-          icon={<GraduationCap className="size-5 text-[var(--app-accent)]" />}
-          onClose={() => setShowAddModal(false)}
-        >
-          <form onSubmit={handleAddTraining} className="space-y-3.5">
-            <div>
-              <FieldLabel>Colaborador</FieldLabel>
-              <Select
-                value={formColabId}
-                onChange={e => setFormColabId(e.target.value)}
-                required
-              >
-                <option value="">Selecione o colaborador...</option>
-                {collaborators.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
-                ))}
-              </Select>
-            </div>
-
-            <div>
-              <FieldLabel>Treinamento / Curso</FieldLabel>
-              <Select
-                value={formCourse}
-                onChange={e => setFormCourse(e.target.value)}
-                required
-              >
-                {COMMON_COURSES.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </Select>
-            </div>
-
-            {formCourse === 'Outro Treinamento' && (
-              <div>
-                <FieldLabel>Nome do Curso Customizado</FieldLabel>
-                <Input
-                  value={formCustomCourse}
-                  onChange={e => setFormCustomCourse(e.target.value)}
-                  placeholder="Ex: Treinamento Especial em Turbo Compressores"
-                  required
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <FieldLabel>Data Emissão</FieldLabel>
-                <Input
-                  type="date"
-                  value={formIssueDate}
-                  onChange={e => setFormIssueDate(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <FieldLabel>Data Validade</FieldLabel>
-                <Input
-                  type="date"
-                  value={formExpiryDate}
-                  min={formIssueDate}
-                  onChange={e => setFormExpiryDate(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <FieldLabel hint="(opcional)">Número do Certificado</FieldLabel>
-              <Input
-                value={formCertNum}
-                onChange={e => setFormCertNum(e.target.value)}
-                placeholder="Ex: CERT-2026-9912"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 border-t border-[var(--app-border)] pt-3">
-              <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit">Salvar Certificado</Button>
-            </div>
-          </form>
-        </ModalShell>
-      ) : null}
-
-      <ConfirmModal
-        isOpen={!!deleteId}
-        title="Excluir Certificado"
-        message="Tem certeza que deseja excluir este registro de treinamento?"
-        confirmText="Sim, Excluir"
-        onClose={() => setDeleteId(null)}
-        onConfirm={async () => {
-          if (deleteId) await handleDelete(deleteId);
-        }}
-      />
-    </PageShell>
+      </div>
+    </div>
   );
 }

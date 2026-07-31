@@ -1,22 +1,45 @@
-import { type SelectHTMLAttributes, forwardRef } from 'react';
+import React from 'react';
 import { cn } from '../../lib/utils';
 
-export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {}
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label?: string;
+  error?: string;
+  options: { value: string; label: string }[];
+}
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, ...props }, ref) => {
+export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+  ({ className, label, error, id, options, ...props }, ref) => {
+    const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
     return (
-      <select
-        className={cn(
-          'flex h-10 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm text-[var(--app-text)]',
-          'focus:border-[var(--app-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent-soft)]',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          className,
+      <div className="flex flex-col gap-1">
+        {label && (
+          <label htmlFor={selectId} className="text-xs font-medium" style={{ color: 'var(--app-text-muted)' }}>
+            {label}
+          </label>
         )}
-        ref={ref}
-        {...props}
-      />
+        <select
+          ref={ref}
+          id={selectId}
+          className={cn(
+            'w-full rounded-md border px-3 py-1.5 text-sm transition-colors focus:outline-none focus:ring-2',
+            error ? 'border-[var(--app-danger)]' : 'border-[var(--app-border)]',
+            className
+          )}
+          style={{
+            background: 'var(--app-surface)',
+            color: 'var(--app-text)',
+            ['--tw-ring-color' as string]: 'var(--app-accent)',
+          }}
+          {...props}
+        >
+          {options.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        {error && <p className="text-xs" style={{ color: 'var(--app-danger)' }}>{error}</p>}
+      </div>
     );
-  },
+  }
 );
 Select.displayName = 'Select';
+export default Select;

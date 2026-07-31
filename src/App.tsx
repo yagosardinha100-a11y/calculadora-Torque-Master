@@ -1,17 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './data/ThemeProvider';
+import { AuthProvider } from './data/AuthProvider';
+import { DataProvider } from './data/DataProvider';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage';
 import SchedulePage from './pages/SchedulePage';
-import VacationPage from './pages/VacationPage';
 import CollaboratorsPage from './pages/CollaboratorsPage';
+import VacationPage from './pages/VacationPage';
 import DobrasPage from './pages/DobrasPage';
 import TreinamentosPage from './pages/TreinamentosPage';
 import RelatoriosPage from './pages/RelatoriosPage';
 import SettingsPage from './pages/SettingsPage';
-import LoginPage from './pages/LoginPage';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider } from './context/AuthContext';
-import { DataProvider } from './context/DataContext';
 
 export default function App() {
   return (
@@ -21,7 +21,6 @@ export default function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Layout />}>
                   <Route index element={<SchedulePage />} />

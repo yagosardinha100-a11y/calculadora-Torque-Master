@@ -1,24 +1,40 @@
-import { type InputHTMLAttributes, forwardRef } from 'react';
+import React from 'react';
 import { cn } from '../../lib/utils';
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {}
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+}
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, label, error, id, ...props }, ref) => {
+    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
     return (
-      <input
-        type={type}
-        className={cn(
-          'flex h-10 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm text-[var(--app-text)]',
-          'placeholder:text-[var(--app-text-faint)]',
-          'focus:border-[var(--app-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent-soft)]',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          className,
+      <div className="flex flex-col gap-1">
+        {label && (
+          <label htmlFor={inputId} className="text-xs font-medium" style={{ color: 'var(--app-text-muted)' }}>
+            {label}
+          </label>
         )}
-        ref={ref}
-        {...props}
-      />
+        <input
+          ref={ref}
+          id={inputId}
+          className={cn(
+            'w-full rounded-md border px-3 py-1.5 text-sm transition-colors placeholder:text-[var(--app-text-faint)] focus:outline-none focus:ring-2',
+            error ? 'border-[var(--app-danger)]' : 'border-[var(--app-border)]',
+            className
+          )}
+          style={{
+            background: 'var(--app-surface)',
+            color: 'var(--app-text)',
+            ['--tw-ring-color' as string]: 'var(--app-accent)',
+          }}
+          {...props}
+        />
+        {error && <p className="text-xs" style={{ color: 'var(--app-danger)' }}>{error}</p>}
+      </div>
     );
-  },
+  }
 );
 Input.displayName = 'Input';
+export default Input;

@@ -1,281 +1,268 @@
-import { useState, type FormEvent } from 'react';
-import { useData } from '../context/DataContext';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
-import { Trash2, Plus, UserPlus, Calendar } from 'lucide-react';
-import type { Collaborator, Role } from '../types';
-import { getDayNameFromDateStr, getFullDayNameFromDateStr, DEFAULT_TURMAS } from '../lib/turmaUtils';
-import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { sortCollaborators } from '../lib/sortUtils';
-import { CollaboratorsSkeleton, LoadingSpinner } from '../components/ui/Skeleton';
-import {
-  EmptyTableRow,
-  FieldLabel,
-  PageHeader,
-  PageShell,
-  SectionSurface,
-  TableHead,
-} from '../components/ui/PageChrome';
+import { useState } from 'react';
+import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import { useData } from '../data/DataProvider';
+import type { Collaborator, Role } from '../domain/types';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 
 const ROLES: Role[] = [
   'Supervisor',
   'Chefe Mecânica',
-  'Coordenador',
   'Mecânico',
   'Assistente Mecânico',
+  'Coordenador',
   'Outros',
 ];
 
+const ROLE_OPTIONS = ROLES.map(r => ({ value: r, label: r }));
+
+interface FormState {
+  name: string;
+  role: Role;
+  turmaId: string;
+  startDate: string;
+  active: boolean;
+}
+
+const emptyForm = (): FormState => ({
+  name: '',
+  role: 'Mecânico',
+  turmaId: '',
+  startDate: '',
+  active: true,
+});
+
 export default function CollaboratorsPage() {
-  const {
-    collaborators,
-    turmas: contextTurmas,
-    loading,
-    addCollaborator,
-    updateCollaborator,
-    deleteCollaborator,
-  } = useData();
+  const { collaborators, turmas, addCollaborator, updateCollaborator, deleteCollaborator } = useData();
 
-  const turmas = contextTurmas && contextTurmas.length > 0 ? contextTurmas : DEFAULT_TURMAS;
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm());
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
 
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<Role>('Mecânico');
-  const [turmaId, setTurmaId] = useState('turma-a');
-  const [startDate, setStartDate] = useState('');
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const turmaOptions = [
+    { value: '', label: 'Sem turma' },
+    ...turmas.map(t => ({ value: t.id, label: t.name })),
+  ];
 
-  if (loading) return <CollaboratorsSkeleton />;
+  const filtered = collaborators
+    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
-  const handleAdd = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!name || !role) return;
+  const openCreate = () => {
+    setEditId(null);
+    setForm(emptyForm());
+    setError('');
+    setShowForm(true);
+  };
 
-    setIsSubmitting(true);
+  const openEdit = (c: Collaborator) => {
+    setEditId(c.id);
+    setForm({
+      name: c.name,
+      role: c.role,
+      turmaId: c.turmaId ?? '',
+      startDate: c.startDate ?? '',
+      active: c.active,
+    });
+    setError('');
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { setError('Nome obrigatório.'); return; }
+    setSaving(true);
+    setError('');
     try {
-      let targetTurmaId = turmaId;
-      if (!targetTurmaId && turmas && turmas.length > 0) {
-        targetTurmaId = turmas[0].id;
-      }
-
-      const normName = name.trim().toUpperCase().replace(/\s+/g, ' ');
-      const existing = collaborators.find(
-        (c) => c.name.trim().toUpperCase().replace(/\s+/g, ' ') === normName,
-      );
-
-      if (existing) {
-        await updateCollaborator(existing.id, {
-          name,
-          role,
-          turmaId: targetTurmaId || 'turma-a',
-          startDate: startDate || undefined,
-          active: true,
+      if (editId) {
+        await updateCollaborator(editId, {
+          name: form.name.trim(),
+          role: form.role,
+          turmaId: form.turmaId,
+          startDate: form.startDate || undefined,
+          active: form.active,
         });
       } else {
         await addCollaborator({
-          name,
-          role,
-          turmaId: targetTurmaId || 'turma-a',
-          startDate: startDate || undefined,
-          active: true,
+          name: form.name.trim(),
+          role: form.role,
+          turmaId: form.turmaId,
+          startDate: form.startDate || undefined,
+          active: form.active,
         });
       }
-
-      setName('');
-      setStartDate('');
+      setShowForm(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar.');
     } finally {
-      setIsSubmitting(false);
+      setSaving(false);
     }
   };
 
-  const toggleActive = async (colab: Collaborator) => {
-    await updateCollaborator(colab.id, { active: !colab.active });
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Excluir ${name}? Todos os eventos vinculados serão removidos.`)) return;
+    try {
+      await deleteCollaborator(id);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Erro ao excluir.');
+    }
   };
 
-  const activeCount = collaborators?.filter((c) => c.active !== false).length || 0;
-
   return (
-    <PageShell>
-      <PageHeader
-        title="Colaboradores"
-        description="Equipe técnica, cargos e turmas do ciclo 14×14."
-        actions={
-          <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1.5 text-[12px] font-semibold">
-            <span className="text-[var(--app-text-muted)]">Ativos </span>
-            <span className="text-[var(--app-accent)]">
-              {activeCount} / {collaborators?.length || 0}
-            </span>
-          </div>
-        }
-      />
+    <div className="h-full overflow-y-auto p-4" style={{ background: 'var(--app-bg)' }}>
+      <div className="max-w-3xl mx-auto flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-lg font-semibold" style={{ color: 'var(--app-text)' }}>
+            Colaboradores
+          </h1>
+          <Button size="sm" onClick={openCreate}>
+            <Plus size={14} /> Novo
+          </Button>
+        </div>
 
-      <SectionSurface
-        title="Novo colaborador"
-        subtitle="Função e data base vinculam à turma automaticamente"
-        actions={<UserPlus className="size-4 text-[var(--app-accent)]" />}
-      >
-        <div className="p-4 sm:p-5">
-          <form onSubmit={handleAdd} className="grid grid-cols-1 items-end gap-4 md:grid-cols-5">
-            <div className="md:col-span-2">
-              <FieldLabel>Nome completo</FieldLabel>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: João Silva" required />
+        {/* Search */}
+        <input
+          type="text"
+          placeholder="Buscar…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full max-w-xs rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-1"
+          style={{
+            background: 'var(--app-surface)',
+            borderColor: 'var(--app-border)',
+            color: 'var(--app-text)',
+            ['--tw-ring-color' as string]: 'var(--app-accent)',
+          }}
+        />
+
+        {/* Form */}
+        {showForm && (
+          <div
+            className="rounded-lg border p-4 flex flex-col gap-3"
+            style={{ background: 'var(--app-surface)', borderColor: 'var(--app-border)' }}
+          >
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--app-text)' }}>
+              {editId ? 'Editar Colaborador' : 'Novo Colaborador'}
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Input label="Nome" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <Select
+                label="Função"
+                value={form.role}
+                onChange={e => setForm(f => ({ ...f, role: e.target.value as Role }))}
+                options={ROLE_OPTIONS}
+              />
+              <Select
+                label="Turma"
+                value={form.turmaId}
+                onChange={e => setForm(f => ({ ...f, turmaId: e.target.value }))}
+                options={turmaOptions}
+              />
+              <Input
+                label="Data Embarque Inicial"
+                type="date"
+                value={form.startDate}
+                onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
+              />
+              <div className="flex items-center gap-2 pt-4">
+                <input
+                  type="checkbox"
+                  id="active-check"
+                  checked={form.active}
+                  onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
+                />
+                <label htmlFor="active-check" className="text-sm" style={{ color: 'var(--app-text)' }}>Ativo</label>
+              </div>
             </div>
-            <div>
-              <FieldLabel>Função</FieldLabel>
-              <Select value={role} onChange={(e) => setRole(e.target.value as Role)} required>
-                {ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel>Turma</FieldLabel>
-              <Select value={turmaId} onChange={(e) => setTurmaId(e.target.value)} required>
-                {turmas.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel hint="(opcional)">Data embarque</FieldLabel>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </div>
-            <div className="flex justify-end md:col-span-5">
-              <Button type="submit" disabled={isSubmitting} className="w-full gap-2 sm:w-auto">
-                {isSubmitting ? <LoadingSpinner size="sm" className="text-white" /> : <Plus className="size-4" />}
-                {isSubmitting ? 'Salvando…' : 'Adicionar'}
+            {error && <p className="text-xs" style={{ color: 'var(--app-danger)' }}>{error}</p>}
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowForm(false)} disabled={saving}>
+                <X size={13} /> Cancelar
+              </Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                <Check size={13} /> {saving ? 'Salvando…' : 'Salvar'}
               </Button>
             </div>
-          </form>
-        </div>
-      </SectionSurface>
+          </div>
+        )}
 
-      <SectionSurface>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <TableHead>
-              <tr>
-                <th className="px-4 py-3">Nome</th>
-                <th className="px-4 py-3">Função</th>
-                <th className="px-4 py-3">Turma</th>
-                <th className="px-4 py-3">Início embarque</th>
-                <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3 text-right">Ações</th>
+        {/* Table */}
+        <div
+          className="rounded-lg border overflow-hidden"
+          style={{ borderColor: 'var(--app-border)' }}
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: 'var(--app-surface-muted)' }}>
+                {['Nome', 'Função', 'Turma', 'Embarque', 'Status', ''].map(h => (
+                  <th key={h} className="px-3 py-2 text-left text-xs font-semibold" style={{ color: 'var(--app-text-muted)', borderBottom: '1px solid var(--app-border)' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            </TableHead>
-            <tbody className="divide-y divide-[var(--app-border)]">
-              {!collaborators || collaborators.length === 0 ? (
-                <EmptyTableRow colSpan={6} title="Nenhum colaborador cadastrado." />
-              ) : (
-                sortCollaborators(collaborators, turmas || []).map((colab) => {
-                  const turma = turmas?.find((t) => t.id === colab.turmaId);
-                  const effectiveStartDate = colab.startDate || turma?.baseDate || '';
-                  const dayAbbr = getDayNameFromDateStr(effectiveStartDate);
-                  const dayFull = getFullDayNameFromDateStr(effectiveStartDate);
-
-                  return (
-                    <tr key={colab.id} className="hover:bg-[var(--app-surface-muted)]">
-                      <td className="min-w-[180px] px-4 py-3 font-semibold text-[var(--app-text)]">
-                        {colab.name}
-                      </td>
-                      <td className="min-w-[170px] px-4 py-3">
-                        <Select
-                          value={colab.role}
-                          onChange={(e) =>
-                            void updateCollaborator(colab.id, { role: e.target.value as Role })
-                          }
-                          className="h-8 text-xs font-semibold"
-                        >
-                          {ROLES.map((r) => (
-                            <option key={r} value={r}>
-                              {r}
-                            </option>
-                          ))}
-                        </Select>
-                      </td>
-                      <td className="min-w-[130px] px-4 py-3">
-                        <Select
-                          value={colab.turmaId}
-                          onChange={(e) => void updateCollaborator(colab.id, { turmaId: e.target.value })}
-                          className="h-8 text-xs font-semibold"
-                        >
-                          {turmas.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.name}
-                            </option>
-                          ))}
-                        </Select>
-                      </td>
-                      <td className="px-4 py-3 text-[var(--app-text-muted)]">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Calendar className="size-3.5 shrink-0 text-[var(--app-text-faint)]" />
-                          <Input
-                            type="date"
-                            value={effectiveStartDate}
-                            onChange={(e) =>
-                              void updateCollaborator(colab.id, {
-                                startDate: e.target.value || undefined,
-                              })
-                            }
-                            className="h-8 w-36 text-xs"
-                          />
-                          {dayAbbr ? (
-                            <span
-                              className="shrink-0 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300"
-                              title={`Dia de embarque: ${dayFull}`}
-                            >
-                              Embarque: {dayAbbr}
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-center">
+            </thead>
+            <tbody>
+              {filtered.map(c => {
+                const turmaName = turmas.find(t => t.id === c.turmaId)?.name ?? '—';
+                return (
+                  <tr
+                    key={c.id}
+                    className="transition-colors hover:bg-[var(--app-surface-muted)]"
+                    style={{ borderBottom: '1px solid var(--app-border)' }}
+                  >
+                    <td className="px-3 py-2 font-medium" style={{ color: 'var(--app-text)' }}>{c.name}</td>
+                    <td className="px-3 py-2" style={{ color: 'var(--app-text-muted)' }}>{c.role}</td>
+                    <td className="px-3 py-2" style={{ color: 'var(--app-text-muted)' }}>{turmaName}</td>
+                    <td className="px-3 py-2" style={{ color: 'var(--app-text-muted)' }}>{c.startDate ?? '—'}</td>
+                    <td className="px-3 py-2">
+                      <span
+                        className="rounded-full px-2 py-0.5 text-xs font-medium"
+                        style={{
+                          background: c.active ? 'rgba(13,148,136,0.15)' : 'rgba(148,163,184,0.15)',
+                          color: c.active ? 'var(--status-escala)' : 'var(--app-text-faint)',
+                        }}
+                      >
+                        {c.active ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1 justify-end">
                         <button
-                          type="button"
-                          onClick={() => void toggleActive(colab)}
-                          className={
-                            colab.active
-                              ? 'inline-flex rounded-md bg-teal-500/15 px-2.5 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300'
-                              : 'inline-flex rounded-md bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-[var(--app-text-muted)]'
-                          }
+                          className="p-1 rounded hover:opacity-70 transition-opacity"
+                          onClick={() => openEdit(c)}
+                          title="Editar"
                         >
-                          {colab.active ? 'Ativo' : 'Inativo'}
+                          <Pencil size={13} style={{ color: 'var(--app-text-muted)' }} />
                         </button>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-[var(--app-danger)] hover:bg-rose-500/10"
-                          onClick={() => setDeleteId(colab.id)}
+                        <button
+                          className="p-1 rounded hover:opacity-70 transition-opacity"
+                          onClick={() => handleDelete(c.id, c.name)}
+                          title="Excluir"
                         >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })
+                          <Trash2 size={13} style={{ color: 'var(--app-danger)' }} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-3 py-6 text-center text-sm" style={{ color: 'var(--app-text-faint)' }}>
+                    Nenhum colaborador encontrado.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
-      </SectionSurface>
-
-      <ConfirmModal
-        isOpen={!!deleteId}
-        title="Excluir colaborador"
-        message="Tem certeza que deseja excluir este colaborador? O histórico de eventos e escala vinculados também serão excluídos."
-        confirmText="Sim, excluir"
-        onClose={() => setDeleteId(null)}
-        onConfirm={async () => {
-          if (deleteId) await deleteCollaborator(deleteId);
-        }}
-      />
-    </PageShell>
+      </div>
+    </div>
   );
 }
