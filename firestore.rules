@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default catch-all deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email in [
+          'odn1mecanicadept@gmail.com',
+          'yago.sardinha100@gmail.com',
+          'joubertribeir@gmail.com'
+        ] ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    match /admins/{uid} {
+      allow read, write: if isAdmin();
+    }
+
+    match /turmas/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /collaborators/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /events/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /vacations/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /trainings/{docId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Escala Offshore",
+  "description": "Sistema de gestão de escala (14x14) para equipe de mecânica em navio sonda offshore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

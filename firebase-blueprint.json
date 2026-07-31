@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "turmas": {
+      "title": "Turmas",
+      "description": "Turmas de trabalho offshore",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "baseDate": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "baseDate"]
+    },
+    "collaborators": {
+      "title": "Collaborators",
+      "description": "Colaboradores e técnicos",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "turmaId": { "type": "string" },
+        "active": { "type": "boolean" },
+        "startDate": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "turmaId"]
+    },
+    "events": {
+      "title": "Events",
+      "description": "Eventos de escala, dobras, faltas e férias",
+      "properties": {
+        "id": { "type": "string" },
+        "collaboratorId": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string" },
+        "note": { "type": "string" },
+        "motive": { "type": "string" },
+        "vacationPlanId": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "collaboratorId", "startDate", "endDate", "status"]
+    },
+    "vacations": {
+      "title": "Vacations",
+      "description": "Planos de férias",
+      "properties": {
+        "id": { "type": "string" },
+        "collaboratorId": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "collaboratorId", "startDate", "endDate", "status"]
+    },
+    "trainings": {
+      "title": "Trainings",
+      "description": "Registros de treinamentos e certificações",
+      "properties": {
+        "id": { "type": "string" },
+        "collaboratorId": { "type": "string" },
+        "courseName": { "type": "string" },
+        "issueDate": { "type": "string" },
+        "expiryDate": { "type": "string" },
+        "certificateNumber": { "type": "string" },
+        "note": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "collaboratorId", "courseName", "issueDate", "expiryDate"]
+    }
+  }
+}
