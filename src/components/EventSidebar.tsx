@@ -3,10 +3,11 @@ import { useData } from '../context/DataContext';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
-import { X, Trash2, Save, Calendar, User, Info, AlertTriangle } from 'lucide-react';
+import { X, Trash2, Save, Calendar, User, Info } from 'lucide-react';
 import type { CellData } from '../hooks/useSchedule';
 import type { Status } from '../types';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { FieldLabel } from './ui/PageChrome';
 
 const STATUS_OPTIONS: Status[] = [
   'Escala',
@@ -55,12 +56,7 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
     if (!endDate) return;
 
     if (cell.event) {
-      await updateEvent(cell.event.id, {
-        status,
-        endDate,
-        motive,
-        note,
-      });
+      await updateEvent(cell.event.id, { status, endDate, motive, note });
     } else {
       await addEvent({
         collaboratorId: cell.collaboratorId,
@@ -83,52 +79,57 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
 
   return (
     <>
-      <div 
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-40 transition-opacity"
-        onClick={onClose}
-      />
-      <div className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-slate-900 shadow-2xl z-50 flex flex-col border-l border-slate-800 transition-transform duration-300 font-sans">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950 text-white">
+      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        className="fixed top-0 right-0 z-50 flex h-full w-full flex-col border-l border-[var(--app-border)] sm:w-[420px]"
+        style={{ background: 'var(--app-surface)' }}
+      >
+        <div
+          className="flex items-center justify-between border-b border-white/10 px-4 py-4 text-white"
+          style={{ background: 'var(--app-header)' }}
+        >
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-400/20 text-cyan-300 flex items-center justify-center font-black">
-              <Calendar className="w-5 h-5" />
+            <div className="flex size-9 items-center justify-center rounded-xl bg-[var(--app-nav-active)] text-white">
+              <Calendar className="size-5" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white">Gerenciar Dia da Escala</h2>
-              <p className="text-xs text-cyan-300 font-bold">{collaboratorName}</p>
+              <h2 className="font-display text-[14px] font-semibold">Editar dia</h2>
+              <p className="text-[12px] text-white/65">{collaboratorName}</p>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
           >
-            <X className="w-5 h-5" />
+            <X className="size-5" />
           </button>
         </div>
-        
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Summary Card */}
-          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-cyan-400" /> Integrante
+
+        <div className="flex-1 space-y-5 overflow-y-auto p-5">
+          <div className="space-y-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="flex items-center gap-1.5 font-medium text-[var(--app-text-muted)]">
+                <User className="size-3.5 text-[var(--app-accent)]" />
+                Integrante
               </span>
-              <span className="font-extrabold text-white">{collaboratorName}</span>
+              <span className="font-semibold text-[var(--app-text)]">{collaboratorName}</span>
             </div>
-            
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800/60 text-xs">
+            <div className="grid grid-cols-2 gap-3 border-t border-[var(--app-border)] pt-2 text-[12px]">
               <div>
-                <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Data de Início</span>
-                <span className="font-bold text-slate-200 mt-0.5 block">
+                <span className="block text-[10px] font-semibold tracking-wider text-[var(--app-text-faint)] uppercase">
+                  Início
+                </span>
+                <span className="mt-0.5 block font-semibold text-[var(--app-text)]">
                   {new Date(cell.dateStr + 'T12:00:00').toLocaleDateString('pt-BR')}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Status Atual</span>
-                <span className="font-black text-cyan-300 mt-0.5 block">
-                  {cell.event ? 'Sobrescrito (Evento)' : cell.status}
+                <span className="block text-[10px] font-semibold tracking-wider text-[var(--app-text-faint)] uppercase">
+                  Status atual
+                </span>
+                <span className="mt-0.5 block font-semibold text-[var(--app-accent)]">
+                  {cell.event ? 'Evento manual' : cell.status}
                 </span>
               </div>
             </div>
@@ -136,69 +137,70 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
 
           <form id="event-form" onSubmit={handleSave} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">Novo Status Operacional</label>
-              <Select value={status} onChange={e => setStatus(e.target.value as Status)} required>
-                {STATUS_OPTIONS.map(s => (
-                  <option key={s} value={s}>{s}</option>
+              <FieldLabel>Novo status</FieldLabel>
+              <Select value={status} onChange={(e) => setStatus(e.target.value as Status)} required>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
                 ))}
               </Select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">Data Final da Alteração</label>
-              <Input 
-                type="date" 
-                value={endDate} 
+              <FieldLabel>Data final</FieldLabel>
+              <Input
+                type="date"
+                value={endDate}
                 min={cell.dateStr}
-                onChange={e => setEndDate(e.target.value)} 
-                required 
+                onChange={(e) => setEndDate(e.target.value)}
+                required
               />
-              <p className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1">
-                <Info className="w-3 h-3 text-cyan-400 shrink-0" />
-                O evento será aplicado da data inicial até esta data.
+              <p className="mt-1.5 flex items-center gap-1 text-[11px] text-[var(--app-text-faint)]">
+                <Info className="size-3 shrink-0 text-[var(--app-accent)]" />
+                Aplicado da data inicial até esta data.
               </p>
             </div>
 
-            {status === 'Dobra' && (
+            {status === 'Dobra' ? (
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">Motivo / Justificativa da Dobra</label>
-                <Input 
-                  value={motive} 
-                  onChange={e => setMotive(e.target.value)} 
-                  placeholder="Ex: Cobertura emergencial de férias" 
+                <FieldLabel>Motivo da dobra</FieldLabel>
+                <Input
+                  value={motive}
+                  onChange={(e) => setMotive(e.target.value)}
+                  placeholder="Ex: Cobertura emergencial de férias"
                 />
               </div>
-            )}
+            ) : null}
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">Observações Adicionais</label>
-              <textarea 
-                className="flex w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[90px]"
+              <FieldLabel>Observações</FieldLabel>
+              <textarea
+                className="min-h-[90px] w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-faint)] focus:border-[var(--app-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent-soft)]"
                 value={note}
-                onChange={e => setNote(e.target.value)}
-                placeholder="Insira detalhes adicionais sobre esta alteração..."
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Detalhes adicionais…"
               />
             </div>
           </form>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 border-t border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
           {cell.event ? (
             <Button type="button" variant="danger" onClick={() => setShowConfirmDelete(true)} className="gap-2 text-xs">
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="size-4" />
               Remover
             </Button>
           ) : (
-            <div></div>
+            <div />
           )}
           <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={onClose} className="text-xs text-slate-400 hover:text-white">
+            <Button type="button" variant="ghost" onClick={onClose} className="text-xs">
               Cancelar
             </Button>
-            <Button type="submit" form="event-form" className="gap-2 text-xs font-black bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white">
-              <Save className="w-4 h-4" />
-              Salvar Alteração
+            <Button type="submit" form="event-form" className="gap-2 text-xs">
+              <Save className="size-4" />
+              Salvar
             </Button>
           </div>
         </div>
@@ -206,13 +208,12 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
 
       <ConfirmModal
         isOpen={showConfirmDelete}
-        title="Excluir Evento Operacional"
+        title="Excluir evento"
         message="Deseja remover este evento e restaurar o status automático da escala?"
-        confirmText="Sim, Remover Evento"
+        confirmText="Sim, remover"
         onClose={() => setShowConfirmDelete(false)}
         onConfirm={handleDelete}
       />
     </>
   );
 }
-

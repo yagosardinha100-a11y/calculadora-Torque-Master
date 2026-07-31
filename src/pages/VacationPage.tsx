@@ -2,37 +2,40 @@ import { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { format, parseISO, differenceInCalendarDays, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { 
-  Palmtree, 
-  Plus, 
-  Calendar, 
-  CheckCircle2, 
-  Clock, 
-  User, 
-  UserCheck, 
-  Edit3, 
-  Trash2, 
+import {
+  Palmtree,
+  Plus,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  User,
+  UserCheck,
+  Edit3,
+  Trash2,
   ArrowRight,
   Send,
   RotateCcw,
   Search,
   Filter,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
 import { VacationModal } from '../components/VacationModal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import type { VacationPlan } from '../types';
 import { checkVacationAlignment } from '../lib/vacationUtils';
-import { useTheme } from '../context/ThemeContext';
 import { cn } from '../lib/utils';
 import { VacationSkeleton } from '../components/ui/Skeleton';
+import {
+  MetricCard,
+  PageHeader,
+  PageShell,
+  SectionSurface,
+} from '../components/ui/PageChrome';
 
 export default function VacationPage() {
-  const { theme } = useTheme();
-  const isLight = theme === 'light';
-
   const {
     vacations,
     collaborators,
@@ -82,15 +85,15 @@ export default function VacationPage() {
   // Filtered plans
   const filteredPlans = (vacations || []).filter(plan => {
     if (filterStatus !== 'all' && plan.status !== filterStatus) return false;
-    
+
     const planType = plan.vacationType || 'FULL';
     if (filterType !== 'all' && planType !== filterType) return false;
-    
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const colabName = colabMap.get(plan.collaboratorId)?.name.toLowerCase() || '';
       const notes = (plan.note || '').toLowerCase();
-      
+
       const coverageMatch = plan.coverages.some(cov => {
         const covName = colabMap.get(cov.collaboratorId)?.name.toLowerCase() || '';
         return covName.includes(term);
@@ -106,150 +109,127 @@ export default function VacationPage() {
   const totalDraft = vacations?.filter(v => v.status === 'draft').length || 0;
 
   return (
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
-      {/* Page Header */}
-      <div className={cn(
-        "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-6 rounded-xl border transition-colors duration-200",
-        isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900 border-slate-800 shadow-xl"
-      )}>
-        <div className="flex items-center gap-3">
-          <div className={cn("p-2.5 sm:p-3 rounded-xl shrink-0", isLight ? "bg-blue-100 text-blue-700" : "bg-blue-500/10 text-cyan-400 border border-cyan-500/20")}>
-            <Palmtree className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <h1 className={cn("text-lg sm:text-xl font-bold", isLight ? "text-slate-900" : "text-white")}>Programação de Férias & Coberturas</h1>
-            <p className={cn("text-[11px] sm:text-xs mt-0.5", isLight ? "text-slate-500" : "text-slate-400")}>
-              Programação de férias e definição de substitutos para lançamento na escala.
-            </p>
-          </div>
-        </div>
+    <PageShell wide>
+      <PageHeader
+        title="Férias"
+        description="Programação de férias e coberturas para lançamento na escala."
+        icon={<Palmtree className="size-5" />}
+        actions={
+          <Button onClick={handleOpenNew} className="w-full gap-2 sm:w-auto">
+            <Plus className="size-4" />
+            Programar Férias
+          </Button>
+        }
+      />
 
-        <Button
-          onClick={handleOpenNew}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2 px-3.5 py-2 shrink-0 text-xs w-full sm:w-auto justify-center"
-        >
-          <Plus className="w-4 h-4" />
-          Programar Férias
-        </Button>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+        <MetricCard
+          label="Total"
+          value={vacations?.length || 0}
+          hint="Programações cadastradas"
+          icon={<Calendar className="size-5" />}
+        />
+        <MetricCard
+          label="Em rascunho"
+          value={totalDraft}
+          hint="Aguardando confirmação"
+          icon={<Clock className="size-5 text-amber-600 dark:text-amber-400" />}
+        />
+        <MetricCard
+          label="Lançados na escala"
+          value={totalConfirmed}
+          hint="Confirmados"
+          icon={<CheckCircle2 className="size-5 text-teal-600 dark:text-teal-400" />}
+        />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className={cn("p-4 rounded-xl border flex items-center justify-between transition-colors duration-200", isLight ? "bg-white border-slate-200 shadow-2xs" : "bg-slate-900 border-slate-800 shadow-lg")}>
-          <div>
-            <span className={cn("text-[11px] font-bold uppercase tracking-wider", isLight ? "text-slate-500" : "text-slate-400")}>Total de Programações</span>
-            <div className={cn("text-2xl font-black mt-1", isLight ? "text-slate-900" : "text-white")}>{vacations?.length || 0}</div>
-          </div>
-          <div className={cn("p-2.5 rounded-lg", isLight ? "bg-slate-100 text-slate-600" : "bg-slate-800 text-slate-300")}>
-            <Calendar className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className={cn("p-4 rounded-xl border flex items-center justify-between transition-colors duration-200", isLight ? "bg-white border-amber-200 bg-amber-50/20 shadow-2xs" : "bg-slate-900 border-amber-500/30 bg-amber-500/5 shadow-lg")}>
-          <div>
-            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Em Rascunho</span>
-            <div className="text-2xl font-black text-amber-700 dark:text-amber-300 mt-1">{totalDraft}</div>
-          </div>
-          <div className="p-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-lg">
-            <Clock className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className={cn("p-4 rounded-xl border flex items-center justify-between transition-colors duration-200", isLight ? "bg-white border-emerald-200 bg-emerald-50/20 shadow-2xs" : "bg-slate-900 border-emerald-500/30 bg-emerald-500/5 shadow-lg")}>
-          <div>
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Lançados na Escala</span>
-            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">{totalConfirmed}</div>
-          </div>
-          <div className="p-2.5 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-lg">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className={cn("p-4 rounded-xl border flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-200", isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800")}>
-        <div className={cn("flex items-center gap-1 p-1 rounded-lg w-full md:w-auto", isLight ? "bg-slate-100" : "bg-slate-950 border border-slate-800")}>
-          <button
-            onClick={() => setFilterStatus('all')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-              filterStatus === 'all'
-                ? (isLight ? 'bg-white text-slate-900 shadow-xs' : 'bg-slate-800 text-white shadow-xs')
-                : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-            }`}
-          >
-            Todos ({vacations?.length || 0})
-          </button>
-          <button
-            onClick={() => setFilterStatus('draft')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
-              filterStatus === 'draft'
-                ? (isLight ? 'bg-amber-50 text-amber-900 border border-amber-200 shadow-xs' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs')
-                : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            Rascunhos ({totalDraft})
-          </button>
-          <button
-            onClick={() => setFilterStatus('confirmed')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
-              filterStatus === 'confirmed'
-                ? (isLight ? 'bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-xs' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs')
-                : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            Lançados na Escala ({totalConfirmed})
-          </button>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <div className="relative w-full sm:w-48">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as any)}
+      <SectionSurface>
+        <div className="flex flex-col items-stretch gap-4 p-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex w-full items-center gap-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-1 md:w-auto">
+            <button
+              type="button"
+              onClick={() => setFilterStatus('all')}
               className={cn(
-                "w-full appearance-none rounded-lg border px-3 py-2 text-xs font-medium outline-none transition-colors",
-                isLight 
-                  ? "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                  : "bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                'rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                filterStatus === 'all'
+                  ? 'bg-[var(--app-surface)] text-[var(--app-text)] shadow-sm'
+                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]',
               )}
             >
-              <option value="all">Todos os Tipos</option>
-              <option value="FULL">Integrais (30d)</option>
-              <option value="SELL_10">Venda Parcial (10d)</option>
-              <option value="SELL_ALL">Venda Total</option>
-            </select>
-            <Filter className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              Todos ({vacations?.length || 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterStatus('draft')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                filterStatus === 'draft'
+                  ? 'border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]',
+              )}
+            >
+              <Clock className="size-3.5 text-amber-600 dark:text-amber-400" />
+              Rascunhos ({totalDraft})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterStatus('confirmed')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                filterStatus === 'confirmed'
+                  ? 'border border-teal-500/30 bg-teal-500/10 text-teal-800 dark:text-teal-300'
+                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]',
+              )}
+            >
+              <CheckCircle2 className="size-3.5 text-teal-600 dark:text-teal-400" />
+              Lançados ({totalConfirmed})
+            </button>
           </div>
 
-          <div className="relative w-full md:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Buscar por colaborador ou substituto..."
-              className="pl-9 text-xs"
-            />
+          <div className="flex w-full flex-col items-center gap-3 sm:flex-row md:w-auto">
+            <div className="relative w-full sm:w-48">
+              <Select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as typeof filterType)}
+                className="pr-8 text-xs"
+              >
+                <option value="all">Todos os tipos</option>
+                <option value="FULL">Integrais (30d)</option>
+                <option value="SELL_10">Venda parcial (10d)</option>
+                <option value="SELL_ALL">Venda total</option>
+              </Select>
+              <Filter className="pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2 text-[var(--app-text-faint)]" />
+            </div>
+
+            <div className="relative w-full md:w-72">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[var(--app-text-faint)]" />
+              <Input
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Buscar por colaborador ou substituto…"
+                className="pl-9 text-xs"
+              />
+            </div>
           </div>
         </div>
-      </div>
+      </SectionSurface>
 
-      {/* Vacation Plans List */}
       {filteredPlans.length === 0 ? (
-        <div className={cn("rounded-xl border border-dashed p-12 text-center space-y-3", isLight ? "bg-white border-slate-300" : "bg-slate-900 border-slate-800")}>
-          <div className={cn("w-12 h-12 rounded-full flex items-center justify-center mx-auto", isLight ? "bg-slate-100 text-slate-400" : "bg-slate-800 text-slate-500")}>
-            <Palmtree className="w-6 h-6" />
+        <div className="rounded-2xl border border-dashed border-[var(--app-border)] bg-[var(--app-surface-muted)] p-12 text-center">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-[var(--app-accent-soft)] text-[var(--app-accent)]">
+            <Palmtree className="size-6" />
           </div>
-          <h3 className={cn("font-bold text-sm", isLight ? "text-slate-800" : "text-white")}>Nenhuma programação de férias encontrada</h3>
-          <p className={cn("text-xs max-w-sm mx-auto", isLight ? "text-slate-500" : "text-slate-400")}>
+          <h3 className="mt-4 text-sm font-semibold text-[var(--app-text)]">
+            Nenhuma programação encontrada
+          </h3>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-[var(--app-text-muted)]">
             {searchTerm || filterStatus !== 'all' || filterType !== 'all'
               ? 'Tente remover os filtros ou buscar por outro termo.'
-              : 'Clique no botão acima para programar as férias de um colaborador e definir quem fará a cobertura.'}
+              : 'Programe as férias de um colaborador e defina quem fará a cobertura.'}
           </p>
           {!searchTerm && filterStatus === 'all' && filterType === 'all' && (
-            <Button onClick={handleOpenNew} className="bg-emerald-600 text-white font-semibold text-xs mt-2">
-              Programar Primeira Férias
+            <Button onClick={handleOpenNew} className="mt-4 gap-2 text-xs">
+              Programar primeira férias
             </Button>
           )}
         </div>
@@ -270,100 +250,102 @@ export default function VacationPage() {
               <div
                 key={plan.id}
                 className={cn(
-                  "rounded-xl border transition-all shadow-xs hover:shadow-md",
-                  isLight 
-                    ? (isConfirmed ? 'bg-white border-emerald-200' : 'bg-white border-amber-200')
-                    : (isConfirmed ? 'bg-slate-900 border-emerald-500/30' : 'bg-slate-900 border-amber-500/30')
+                  'app-surface overflow-hidden rounded-2xl border transition-shadow hover:shadow-md',
+                  isConfirmed ? 'border-teal-500/30' : 'border-amber-500/30',
                 )}
               >
-                <div className={cn("p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b", isLight ? "border-slate-100" : "border-slate-800")}>
-                  {/* Vacationer info */}
+                <div className="flex flex-col justify-between gap-4 border-b border-[var(--app-border)] p-5 md:flex-row md:items-center">
                   <div className="flex items-start gap-3">
-                    <div className={cn("p-2.5 rounded-lg shrink-0", isConfirmed ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300")}>
-                      <User className="w-5 h-5" />
+                    <div
+                      className={cn(
+                        'shrink-0 rounded-xl p-2.5',
+                        isConfirmed
+                          ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300'
+                          : 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+                      )}
+                    >
+                      <User className="size-5" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className={cn("font-bold text-base", isLight ? "text-slate-900" : "text-white")}>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-display text-base font-semibold text-[var(--app-text)]">
                           {colab ? colab.name : 'Colaborador não encontrado'}
                         </h3>
                         {colab && (
-                          <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded", isLight ? "text-slate-600 bg-slate-100" : "text-slate-300 bg-slate-800")}>
+                          <span className="rounded-md bg-[var(--app-surface-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-text-muted)]">
                             {colab.role}
                           </span>
                         )}
-                        {/* Tipo de Férias Badge */}
                         {(!plan.vacationType || plan.vacationType === 'FULL') && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-500/40 px-2 py-0.5 rounded-full">
-                            <Palmtree className="w-3 h-3 text-blue-600 dark:text-cyan-400" />
+                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-800 dark:text-sky-300">
+                            <Palmtree className="size-3" />
                             Férias (30 dias)
                           </span>
                         )}
                         {plan.vacationType === 'SELL_10' && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 px-2 py-0.5 rounded-full">
-                            <Palmtree className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                            Venda Parcial
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                            <Palmtree className="size-3" />
+                            Venda parcial
                           </span>
                         )}
                         {plan.vacationType === 'SELL_ALL' && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 px-2 py-0.5 rounded-full">
-                            <Palmtree className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                            Venda Total
+                          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-text-muted)]">
+                            <Palmtree className="size-3" />
+                            Venda total
                           </span>
                         )}
-                        
+
                         {isConfirmed ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 px-2 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                            Lançado na Escala
+                          <span className="inline-flex items-center gap-1 rounded-full border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-[11px] font-semibold text-teal-800 dark:text-teal-300">
+                            <CheckCircle2 className="size-3" />
+                            Lançado na escala
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 px-2 py-0.5 rounded-full">
-                            <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                            Rascunho (Aguardando Confirmação)
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                            <Clock className="size-3" />
+                            Rascunho
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300 mt-1.5 flex-wrap">
-                        <span className={cn("flex items-center gap-1 font-semibold px-2 py-1 rounded border", isLight ? "text-slate-800 bg-slate-50 border-slate-200" : "text-slate-200 bg-slate-800 border-slate-700")}>
-                          <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400" />
-                          {plan.startDate ? format(parseISO(plan.startDate), "dd/MM/yyyy", { locale: ptBR }) : '-'}
-                          <ArrowRight className="w-3 h-3 text-slate-400" />
-                          {plan.endDate ? format(parseISO(plan.endDate), "dd/MM/yyyy", { locale: ptBR }) : '-'}
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--app-text-muted)]">
+                        <span className="flex items-center gap-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-2 py-1 font-semibold text-[var(--app-text)]">
+                          <Calendar className="size-3.5 text-[var(--app-accent)]" />
+                          {plan.startDate ? format(parseISO(plan.startDate), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                          <ArrowRight className="size-3 text-[var(--app-text-faint)]" />
+                          {plan.endDate ? format(parseISO(plan.endDate), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                         </span>
 
                         {daysCount > 0 && (
-                          <span className={cn("font-medium", isLight ? "text-slate-500" : "text-slate-400")}>
+                          <span className="font-medium text-[var(--app-text-faint)]">
                             ({daysCount} dias)
                           </span>
                         )}
 
                         {plan.endDate && (
-                          <span className="font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/30 text-[11px] flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                            Retorno: {format(addDays(parseISO(plan.endDate), 1), "dd/MM/yyyy", { locale: ptBR })}
+                          <span className="flex items-center gap-1 rounded border border-teal-500/25 bg-teal-500/10 px-2 py-0.5 text-[11px] font-semibold text-teal-800 dark:text-teal-300">
+                            <Sparkles className="size-3" />
+                            Retorno: {format(addDays(parseISO(plan.endDate), 1), 'dd/MM/yyyy', { locale: ptBR })}
                           </span>
                         )}
 
                         {plan.note && (
-                          <span className={cn("italic", isLight ? "text-slate-500" : "text-slate-400")}>
-                            &bull; "{plan.note}"
+                          <span className="italic text-[var(--app-text-faint)]">
+                            &bull; &ldquo;{plan.note}&rdquo;
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Top Action buttons */}
-                  <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                  <div className="flex shrink-0 items-center gap-2 self-end md:self-center">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleOpenEdit(plan)}
                       className="gap-1.5 text-xs"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      <Edit3 className="size-3.5" />
                       Editar
                     </Button>
 
@@ -372,21 +354,21 @@ export default function VacationPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleUnconfirmPlan(plan.id)}
-                        className="gap-1.5 text-xs text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100"
+                        className="gap-1.5 border-amber-500/30 bg-amber-500/10 text-xs text-amber-800 hover:bg-amber-500/15 dark:text-amber-300"
                         title="Desfaz o lançamento das Férias e Dobras na aba Escala"
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Desfazer Lançamento
+                        <RotateCcw className="size-3.5" />
+                        Desfazer lançamento
                       </Button>
                     ) : (
                       <Button
                         size="sm"
                         onClick={() => handleConfirmPlan(plan.id)}
-                        className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                        className="gap-1.5 text-xs"
                         title="Publica o status de Férias e as Dobras de cobertura na planilha Escala"
                       >
-                        <Send className="w-3.5 h-3.5" />
-                        Confirmar e Lançar na Escala
+                        <Send className="size-3.5" />
+                        Confirmar e lançar
                       </Button>
                     )}
 
@@ -394,27 +376,27 @@ export default function VacationPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setDeletePlanId(plan.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10"
+                      className="text-[var(--app-danger)] hover:bg-rose-500/10"
                       title="Excluir programação"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="size-4" />
                     </Button>
                   </div>
                 </div>
 
-                {/* Coverage Details Section */}
-                <div className={cn("p-4 rounded-b-xl border-t space-y-2", isLight ? "bg-slate-50/70 border-slate-100" : "bg-slate-950/70 border-slate-800")}>
-                  <span className={cn("text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5", isLight ? "text-slate-500" : "text-slate-400")}>
-                    <UserCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                    Cobertura de Férias Definida ({plan.coverages.length} {plan.coverages.length === 1 ? 'Substituto' : 'Substitutos'})
+                <div className="space-y-2 border-t border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-[var(--app-text-faint)] uppercase">
+                    <UserCheck className="size-3.5 text-amber-600 dark:text-amber-400" />
+                    Cobertura ({plan.coverages.length}{' '}
+                    {plan.coverages.length === 1 ? 'substituto' : 'substitutos'})
                   </span>
 
                   {plan.coverages.length === 0 ? (
-                    <p className={cn("text-xs italic", isLight ? "text-slate-400" : "text-slate-500")}>
-                      Nenhum substituto foi atribuído ainda a esta férias.
+                    <p className="text-xs italic text-[var(--app-text-faint)]">
+                      Nenhum substituto atribuído a esta programação.
                     </p>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1">
+                    <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2 lg:grid-cols-3">
                       {plan.coverages.map((cov, idx) => {
                         const covColab = colabMap.get(cov.collaboratorId);
                         const isSlot1 = idx === 0;
@@ -423,34 +405,34 @@ export default function VacationPage() {
                         return (
                           <div
                             key={cov.id || idx}
-                            className={cn("p-2.5 rounded-lg border text-xs flex items-start gap-2 shadow-2xs", isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800")}
+                            className="flex items-start gap-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-2.5 text-xs"
                           >
-                            <div className="p-1.5 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded shrink-0 mt-0.5">
-                              <UserCheck className="w-3.5 h-3.5" />
+                            <div className="mt-0.5 shrink-0 rounded-lg bg-amber-500/15 p-1.5 text-amber-700 dark:text-amber-300">
+                              <UserCheck className="size-3.5" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-1">
-                                <div className={cn("font-bold truncate", isLight ? "text-slate-800" : "text-white")}>
+                                <div className="truncate font-semibold text-[var(--app-text)]">
                                   {covColab ? covColab.name : 'Substituto'}
                                 </div>
                                 {isSlot1 && (
-                                  <span className="text-[9px] font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/20 px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-500/30 shrink-0">
+                                  <span className="shrink-0 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-sky-800 dark:text-sky-300">
                                     Turno 1 (7d)
                                   </span>
                                 )}
                                 {isSlot2 && (
-                                  <span className="text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/20 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-500/30 shrink-0">
+                                  <span className="shrink-0 rounded border border-teal-500/30 bg-teal-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-teal-800 dark:text-teal-300">
                                     Turno 2 (7d)
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[11px] text-amber-800 dark:text-amber-300 font-medium mt-0.5">
-                                Cobertura: {cov.startDate ? format(parseISO(cov.startDate), "dd/MM", { locale: ptBR }) : ''}
+                              <div className="mt-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+                                Cobertura: {cov.startDate ? format(parseISO(cov.startDate), 'dd/MM', { locale: ptBR }) : ''}
                                 {' a '}
-                                {cov.endDate ? format(parseISO(cov.endDate), "dd/MM", { locale: ptBR }) : ''}
+                                {cov.endDate ? format(parseISO(cov.endDate), 'dd/MM', { locale: ptBR }) : ''}
                               </div>
                               {cov.note && (
-                                <div className={cn("text-[10px] truncate mt-0.5", isLight ? "text-slate-500" : "text-slate-400")}>
+                                <div className="mt-0.5 truncate text-[10px] text-[var(--app-text-faint)]">
                                   {cov.note}
                                 </div>
                               )}
@@ -467,7 +449,6 @@ export default function VacationPage() {
         </div>
       )}
 
-      {/* Vacation Modal */}
       {isModalOpen && (
         <VacationModal
           initialPlan={selectedPlan}
@@ -475,7 +456,6 @@ export default function VacationPage() {
         />
       )}
 
-      {/* Confirm Delete Modal */}
       <ConfirmModal
         isOpen={!!deletePlanId}
         title="Excluir Programação de Férias"
@@ -488,6 +468,6 @@ export default function VacationPage() {
           }
         }}
       />
-    </div>
+    </PageShell>
   );
 }

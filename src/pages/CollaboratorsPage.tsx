@@ -9,9 +9,15 @@ import type { Collaborator, Role } from '../types';
 import { getDayNameFromDateStr, getFullDayNameFromDateStr, DEFAULT_TURMAS } from '../lib/turmaUtils';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { sortCollaborators } from '../lib/sortUtils';
-import { useTheme } from '../context/ThemeContext';
-import { cn } from '../lib/utils';
 import { CollaboratorsSkeleton, LoadingSpinner } from '../components/ui/Skeleton';
+import {
+  EmptyTableRow,
+  FieldLabel,
+  PageHeader,
+  PageShell,
+  SectionSurface,
+  TableHead,
+} from '../components/ui/PageChrome';
 
 const ROLES: Role[] = [
   'Supervisor',
@@ -19,13 +25,10 @@ const ROLES: Role[] = [
   'Coordenador',
   'Mecânico',
   'Assistente Mecânico',
-  'Outros'
+  'Outros',
 ];
 
 export default function CollaboratorsPage() {
-  const { theme } = useTheme();
-  const isLight = theme === 'light';
-
   const {
     collaborators,
     turmas: contextTurmas,
@@ -35,8 +38,8 @@ export default function CollaboratorsPage() {
     deleteCollaborator,
   } = useData();
 
-  const turmas = (contextTurmas && contextTurmas.length > 0) ? contextTurmas : DEFAULT_TURMAS;
-  
+  const turmas = contextTurmas && contextTurmas.length > 0 ? contextTurmas : DEFAULT_TURMAS;
+
   const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('Mecânico');
   const [turmaId, setTurmaId] = useState('turma-a');
@@ -48,13 +51,7 @@ export default function CollaboratorsPage() {
     deduplicateCollaborators().catch(console.error);
   }, []);
 
-  if (loading) {
-    return <CollaboratorsSkeleton />;
-  }
-
-  const handleStartDateChange = (dateVal: string) => {
-    setStartDate(dateVal);
-  };
+  if (loading) return <CollaboratorsSkeleton />;
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
@@ -68,7 +65,9 @@ export default function CollaboratorsPage() {
       }
 
       const normName = name.trim().toUpperCase().replace(/\s+/g, ' ');
-      const existing = collaborators.find(c => c.name.trim().toUpperCase().replace(/\s+/g, ' ') === normName);
+      const existing = collaborators.find(
+        (c) => c.name.trim().toUpperCase().replace(/\s+/g, ' ') === normName,
+      );
 
       if (existing) {
         await updateCollaborator(existing.id, {
@@ -87,7 +86,7 @@ export default function CollaboratorsPage() {
           active: true,
         });
       }
-      
+
       setName('');
       setStartDate('');
     } finally {
@@ -95,228 +94,193 @@ export default function CollaboratorsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteCollaborator(id);
-  };
-
   const toggleActive = async (colab: Collaborator) => {
     await updateCollaborator(colab.id, { active: !colab.active });
   };
 
-  const updateCollaboratorRole = async (colabId: string, newRole: Role) => {
-    await updateCollaborator(colabId, { role: newRole });
-  };
-
-  const updateCollaboratorTurma = async (colabId: string, newTurmaId: string) => {
-    await updateCollaborator(colabId, { turmaId: newTurmaId });
-  };
-
-  const updateCollaboratorName = async (colabId: string, newName: string) => {
-    if (!newName.trim()) return;
-    await updateCollaborator(colabId, { name: newName });
-  };
-
-  const updateCollaboratorStartDate = async (colabId: string, newStartDate: string) => {
-    await updateCollaborator(colabId, { startDate: newStartDate || undefined });
-  };
-
-  const activeCount = collaborators?.filter(c => c.active !== false).length || 0;
+  const activeCount = collaborators?.filter((c) => c.active !== false).length || 0;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-3 sm:space-y-5 sm:p-6">
-      <div className="app-surface flex flex-col justify-between gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:p-5">
-        <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--app-text)] sm:text-2xl">
-            Colaboradores
-          </h1>
-          <p className="mt-1 text-[13px] text-[var(--app-text-muted)]">
-            Equipe técnica, cargos e turmas do ciclo 14×14.
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1.5 text-[12px] font-semibold">
-          <span className="text-[var(--app-text-muted)]">Ativos</span>
-          <span className="text-[var(--app-accent)]">
-            {activeCount} / {collaborators?.length || 0}
-          </span>
-        </div>
-      </div>
-      
-      {/* Register Form Card */}
-      <div className="app-surface overflow-hidden rounded-2xl">
-        <div className="flex items-center justify-between border-b border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4 sm:p-5">
-          <h2 className="flex items-center gap-2 text-[12px] font-semibold tracking-wider text-[var(--app-text)] uppercase">
-            <UserPlus className="h-4 w-4 text-[var(--app-accent)]" />
-            Novo colaborador
-          </h2>
-          <span className="hidden text-[11px] font-medium text-[var(--app-text-muted)] sm:inline">
-            Função e data base vinculam à turma automaticamente
-          </span>
-        </div>
+    <PageShell>
+      <PageHeader
+        title="Colaboradores"
+        description="Equipe técnica, cargos e turmas do ciclo 14×14."
+        actions={
+          <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1.5 text-[12px] font-semibold">
+            <span className="text-[var(--app-text-muted)]">Ativos </span>
+            <span className="text-[var(--app-accent)]">
+              {activeCount} / {collaborators?.length || 0}
+            </span>
+          </div>
+        }
+      />
+
+      <SectionSurface
+        title="Novo colaborador"
+        subtitle="Função e data base vinculam à turma automaticamente"
+        actions={<UserPlus className="size-4 text-[var(--app-accent)]" />}
+      >
         <div className="p-4 sm:p-5">
-          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <form onSubmit={handleAdd} className="grid grid-cols-1 items-end gap-4 md:grid-cols-5">
             <div className="md:col-span-2">
-              <label className={cn("block text-xs font-semibold mb-1", isLight ? "text-slate-700" : "text-slate-300")}>Nome Completo</label>
-              <Input 
-                value={name} 
-                onChange={e => setName(e.target.value)} 
-                placeholder="Ex: João Silva" 
-                required 
-              />
+              <FieldLabel>Nome completo</FieldLabel>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: João Silva" required />
             </div>
             <div>
-              <label className={cn("block text-xs font-semibold mb-1", isLight ? "text-slate-700" : "text-slate-300")}>Função</label>
-              <Select value={role} onChange={e => setRole(e.target.value as Role)} required>
-                {ROLES.map(r => (
-                  <option key={r} value={r}>{r}</option>
+              <FieldLabel>Função</FieldLabel>
+              <Select value={role} onChange={(e) => setRole(e.target.value as Role)} required>
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
               </Select>
             </div>
             <div>
-              <label className={cn("block text-xs font-semibold mb-1", isLight ? "text-slate-700" : "text-slate-300")}>Turma</label>
-              <Select value={turmaId} onChange={e => setTurmaId(e.target.value)} required>
-                {turmas.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+              <FieldLabel>Turma</FieldLabel>
+              <Select value={turmaId} onChange={(e) => setTurmaId(e.target.value)} required>
+                {turmas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
                 ))}
               </Select>
             </div>
             <div>
-              <label className={cn("block text-xs font-semibold mb-1", isLight ? "text-slate-700" : "text-slate-300")}>
-                Data Embarque <span className={cn("font-normal", isLight ? "text-slate-400" : "text-slate-500")}>(Opcional)</span>
-              </label>
-              <Input 
-                type="date"
-                value={startDate}
-                onChange={e => handleStartDateChange(e.target.value)}
-                placeholder="Usa a data da Turma se vazio"
-              />
+              <FieldLabel hint="(opcional)">Data embarque</FieldLabel>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
-            <div className="md:col-span-5 flex justify-end">
-              <Button type="submit" disabled={isSubmitting} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 w-full sm:w-auto justify-center">
-                {isSubmitting ? <LoadingSpinner size="sm" className="text-white" /> : <Plus className="h-4 w-4" />}
-                {isSubmitting ? 'Salvando...' : 'Adicionar Colaborador'}
+            <div className="flex justify-end md:col-span-5">
+              <Button type="submit" disabled={isSubmitting} className="w-full gap-2 sm:w-auto">
+                {isSubmitting ? <LoadingSpinner size="sm" className="text-white" /> : <Plus className="size-4" />}
+                {isSubmitting ? 'Salvando…' : 'Adicionar'}
               </Button>
             </div>
           </form>
         </div>
-      </div>
+      </SectionSurface>
 
-      <div className={cn("border rounded-lg shadow-xs overflow-hidden transition-colors duration-200", isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800")}>
+      <SectionSurface>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left min-w-[600px]">
-          <thead className={cn("border-b font-semibold", isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-slate-950 border-slate-800 text-slate-300")}>
-            <tr>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Função</th>
-              <th className="px-4 py-3">Turma</th>
-              <th className="px-4 py-3">Início Embarque</th>
-              <th className="px-4 py-3 text-center">Status</th>
-              <th className="px-4 py-3 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody className={cn("divide-y", isLight ? "divide-slate-200" : "divide-slate-800")}>
-            {(!collaborators || collaborators.length === 0) ? (
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <TableHead>
               <tr>
-                <td colSpan={6} className={cn("px-4 py-8 text-center", isLight ? "text-slate-500" : "text-slate-400")}>
-                  Nenhum colaborador cadastrado.
-                </td>
+                <th className="px-4 py-3">Nome</th>
+                <th className="px-4 py-3">Função</th>
+                <th className="px-4 py-3">Turma</th>
+                <th className="px-4 py-3">Início embarque</th>
+                <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-right">Ações</th>
               </tr>
-            ) : (
-              sortCollaborators(collaborators, turmas || []).map(colab => {
-                const turma = turmas?.find(t => t.id === colab.turmaId);
-                const effectiveStartDate = colab.startDate || turma?.baseDate || '';
-                const dayAbbr = getDayNameFromDateStr(effectiveStartDate);
-                const dayFull = getFullDayNameFromDateStr(effectiveStartDate);
-                
-                return (
-                  <tr key={colab.id} className={isLight ? "hover:bg-slate-50/80" : "hover:bg-slate-800/50"}>
-                    <td className={cn("px-4 py-3 font-semibold min-w-[180px]", isLight ? "text-slate-900" : "text-white")}>
-                      {colab.name}
-                    </td>
-                    <td className="px-4 py-3 min-w-[170px]">
-                      <Select
-                        value={colab.role}
-                        onChange={e => updateCollaboratorRole(colab.id, e.target.value as Role)}
-                        className="h-8 text-xs font-semibold"
-                      >
-                        {ROLES.map(r => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </Select>
-                    </td>
-                    <td className="px-4 py-3 min-w-[130px]">
-                      <Select
-                        value={colab.turmaId}
-                        onChange={e => updateCollaboratorTurma(colab.id, e.target.value)}
-                        className="h-8 text-xs font-bold"
-                      >
-                        {turmas.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </Select>
-                    </td>
-                    <td className={cn("px-4 py-3", isLight ? "text-slate-700" : "text-slate-300")}>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        <Input 
-                          type="date"
-                          value={effectiveStartDate}
-                          onChange={e => updateCollaboratorStartDate(colab.id, e.target.value)}
-                          className="h-8 text-xs w-36"
-                        />
-                        {dayAbbr && (
-                          <span 
-                            className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 shrink-0"
-                            title={`Dia de Embarque: ${dayFull}`}
-                          >
-                            Embarque: {dayAbbr}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button 
-                        onClick={() => toggleActive(colab)}
-                        className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-                          colab.active 
-                            ? (isLight ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30')
-                            : (isLight ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-800 text-slate-400 hover:bg-slate-700')
-                        }`}
-                      >
-                        {colab.active ? 'Ativo' : 'Inativo'}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10"
-                        onClick={() => setDeleteId(colab.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+            </TableHead>
+            <tbody className="divide-y divide-[var(--app-border)]">
+              {!collaborators || collaborators.length === 0 ? (
+                <EmptyTableRow colSpan={6} title="Nenhum colaborador cadastrado." />
+              ) : (
+                sortCollaborators(collaborators, turmas || []).map((colab) => {
+                  const turma = turmas?.find((t) => t.id === colab.turmaId);
+                  const effectiveStartDate = colab.startDate || turma?.baseDate || '';
+                  const dayAbbr = getDayNameFromDateStr(effectiveStartDate);
+                  const dayFull = getFullDayNameFromDateStr(effectiveStartDate);
+
+                  return (
+                    <tr key={colab.id} className="hover:bg-[var(--app-surface-muted)]">
+                      <td className="min-w-[180px] px-4 py-3 font-semibold text-[var(--app-text)]">
+                        {colab.name}
+                      </td>
+                      <td className="min-w-[170px] px-4 py-3">
+                        <Select
+                          value={colab.role}
+                          onChange={(e) =>
+                            void updateCollaborator(colab.id, { role: e.target.value as Role })
+                          }
+                          className="h-8 text-xs font-semibold"
+                        >
+                          {ROLES.map((r) => (
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      <td className="min-w-[130px] px-4 py-3">
+                        <Select
+                          value={colab.turmaId}
+                          onChange={(e) => void updateCollaborator(colab.id, { turmaId: e.target.value })}
+                          className="h-8 text-xs font-semibold"
+                        >
+                          {turmas.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      <td className="px-4 py-3 text-[var(--app-text-muted)]">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Calendar className="size-3.5 shrink-0 text-[var(--app-text-faint)]" />
+                          <Input
+                            type="date"
+                            value={effectiveStartDate}
+                            onChange={(e) =>
+                              void updateCollaborator(colab.id, {
+                                startDate: e.target.value || undefined,
+                              })
+                            }
+                            className="h-8 w-36 text-xs"
+                          />
+                          {dayAbbr ? (
+                            <span
+                              className="shrink-0 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300"
+                              title={`Dia de embarque: ${dayFull}`}
+                            >
+                              Embarque: {dayAbbr}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => void toggleActive(colab)}
+                          className={
+                            colab.active
+                              ? 'inline-flex rounded-md bg-teal-500/15 px-2.5 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300'
+                              : 'inline-flex rounded-md bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-[var(--app-text-muted)]'
+                          }
+                        >
+                          {colab.active ? 'Ativo' : 'Inativo'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-[var(--app-danger)] hover:bg-rose-500/10"
+                          onClick={() => setDeleteId(colab.id)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
+      </SectionSurface>
 
       <ConfirmModal
         isOpen={!!deleteId}
-        title="Excluir Colaborador"
-        message="Tem certeza que deseja excluir este colaborador? O histórico de eventos e escala vinculados a ele também serão excluídos."
-        confirmText="Sim, Excluir"
+        title="Excluir colaborador"
+        message="Tem certeza que deseja excluir este colaborador? O histórico de eventos e escala vinculados também serão excluídos."
+        confirmText="Sim, excluir"
         onClose={() => setDeleteId(null)}
         onConfirm={async () => {
-          if (deleteId) {
-            await handleDelete(deleteId);
-          }
+          if (deleteId) await deleteCollaborator(deleteId);
         }}
       />
-    </div>
+    </PageShell>
   );
 }
-

@@ -8,14 +8,11 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function Skeleton({ className, ...props }: SkeletonProps) {
-  const { isLight } = useTheme();
-
   return (
     <div
       className={cn(
-        'animate-pulse rounded-md transition-colors duration-200',
-        isLight ? 'bg-slate-200/80' : 'bg-slate-800/80',
-        className
+        'animate-pulse rounded-md bg-[var(--app-border)]/70 transition-colors duration-200',
+        className,
       )}
       {...props}
     />
@@ -32,9 +29,9 @@ export function LoadingSpinner({ className, size = 'md' }: { className?: string;
   return (
     <div
       className={cn(
-        'inline-block animate-spin rounded-full border-current border-t-transparent text-blue-500',
+        'inline-block animate-spin rounded-full border-current border-t-transparent text-[var(--app-accent)]',
         sizeClasses,
-        className
+        className,
       )}
       role="status"
       aria-label="Carregando..."
