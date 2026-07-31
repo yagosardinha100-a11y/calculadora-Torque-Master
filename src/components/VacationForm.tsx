@@ -5,11 +5,13 @@ import type { VacationPlan, VacationType, VacationCoverage } from '../domain/typ
 import {
   getAlignedVacationOptions,
   alignVacationDates,
-  calculateCoverageSlotsAndSuggestions,
+  calculateCoverageSuggestions,
   checkVacationAlignment,
   formatDateBR,
   addDaysToStr,
   requireVacationAnchor,
+  type CoverageSuggestionsResult,
+  type CoverageCombinationView,
 } from '../domain';
 import Button from './ui/Button';
 import Input from './ui/Input';
@@ -26,49 +28,68 @@ interface Props {
   onClose: () => void;
 }
 
-function buildCoveragesFromSlots(
-  slots: ReturnType<typeof calculateCoverageSlotsAndSuggestions>,
+function coveragesFromCombination(
+  combo: CoverageCombinationView,
+  slots: CoverageSuggestionsResult['slots'],
 ): VacationCoverage[] {
-  if (slots.length === 0) return [];
-
-  if (slots.length === 2) {
-    const c1 =
-      slots[0].recommendedCandidate?.id || slots[0].candidates[0]?.collaborator.id || '';
-    let c2 = slots[1].recommendedCandidate?.id || '';
-    if (!c2 || c2 === c1) {
-      c2 =
-        slots[1].candidates.find((cand) => cand.collaborator.id !== c1)?.collaborator.id || '';
-    }
-    return [
-      {
-        id: crypto.randomUUID(),
-        collaboratorId: c1,
-        startDate: slots[0].startDate,
-        endDate: slots[0].endDate,
-        note: 'Cobertura 1º turno (7d)',
-      },
-      {
-        id: crypto.randomUUID(),
-        collaboratorId: c2,
-        startDate: slots[1].startDate,
-        endDate: slots[1].endDate,
-        note: 'Cobertura 2º turno (7d)',
-      },
-    ].filter((c) => c.collaboratorId);
+  const out: VacationCoverage[] = [];
+  if (combo.week1CollaboratorId && combo.week1Start && combo.week1End) {
+    out.push({
+      id: crypto.randomUUID(),
+      collaboratorId: combo.week1CollaboratorId,
+      startDate: combo.week1Start,
+      endDate: combo.week1End,
+      note: `1ª semana · ${combo.week1Strategy === 'prolong' ? 'prolonga' : 'antecipa'}`,
+    });
+  } else if (slots[0]?.recommendedCandidate && slots[0].recommendedCoverageStart) {
+    out.push({
+      id: crypto.randomUUID(),
+      collaboratorId: slots[0].recommendedCandidate.id,
+      startDate: slots[0].recommendedCoverageStart,
+      endDate: slots[0].recommendedCoverageEnd || slots[0].endDate,
+      note: '1ª semana',
+    });
   }
 
-  const slot = slots[0];
-  const id = slot.recommendedCandidate?.id || slot.candidates[0]?.collaborator.id || '';
-  if (!id) return [];
-  return [
-    {
+  if (combo.week2CollaboratorId && combo.week2Start && combo.week2End) {
+    out.push({
       id: crypto.randomUUID(),
-      collaboratorId: id,
-      startDate: slot.startDate,
-      endDate: slot.endDate,
-      note: 'Cobertura',
-    },
-  ];
+      collaboratorId: combo.week2CollaboratorId,
+      startDate: combo.week2Start,
+      endDate: combo.week2End,
+      note: `2ª semana · ${combo.week2Strategy === 'prolong' ? 'prolonga' : 'antecipa'}`,
+    });
+  } else if (slots.length > 1 && slots[1].recommendedCandidate && slots[1].recommendedCoverageStart) {
+    out.push({
+      id: crypto.randomUUID(),
+      collaboratorId: slots[1].recommendedCandidate.id,
+      startDate: slots[1].recommendedCoverageStart,
+      endDate: slots[1].recommendedCoverageEnd || slots[1].endDate,
+      note: '2ª semana',
+    });
+  }
+
+  return out.filter((c) => c.collaboratorId);
+}
+
+function buildCoveragesFromResult(result: CoverageSuggestionsResult): VacationCoverage[] {
+  if (result.combinations[0]) {
+    return coveragesFromCombination(result.combinations[0], result.slots);
+  }
+
+  return result.slots
+    .map((slot) => {
+      const id = slot.recommendedCandidate?.id || slot.candidates[0]?.collaborator.id || '';
+      if (!id) return null;
+      return {
+        id: crypto.randomUUID(),
+        collaboratorId: id,
+        startDate: slot.recommendedCoverageStart || slot.startDate,
+        endDate: slot.recommendedCoverageEnd || slot.endDate,
+        note: slot.title,
+      } as VacationCoverage;
+    })
+    .filter((c): c is VacationCoverage => Boolean(c));
 }
 
 export default function VacationForm({ plan, onClose }: Props) {
@@ -110,9 +131,11 @@ export default function VacationForm({ plan, onClose }: Props) {
     return checkVacationAlignment(startDate, endDate, colab, turma);
   }, [colab, startDate, endDate, turma]);
 
-  const coverageSlots = useMemo(() => {
-    if (!colab || !startDate || !endDate || vacationType === 'SELL_ALL' || anchorError) return [];
-    return calculateCoverageSlotsAndSuggestions(
+  const coverageResult = useMemo(() => {
+    if (!colab || !startDate || !endDate || vacationType === 'SELL_ALL' || anchorError) {
+      return null;
+    }
+    return calculateCoverageSuggestions(
       colab,
       startDate,
       endDate,
@@ -124,7 +147,8 @@ export default function VacationForm({ plan, onClose }: Props) {
     );
   }, [colab, startDate, endDate, vacationType, collaborators, turmas, events, vacations, anchorError]);
 
-  // Auto-pick first aligned option when selecting collaborator (new plan)
+  const coverageSlots = coverageResult?.slots ?? [];
+
   useEffect(() => {
     if (plan || !collabId || autoFillDone || alignedOptions.length === 0) return;
     setStartDate(alignedOptions[0].vacationStart);
@@ -133,20 +157,17 @@ export default function VacationForm({ plan, onClose }: Props) {
     setAutoFillDone(true);
   }, [collabId, alignedOptions, plan, autoFillDone]);
 
-  // Sync coverages from suggested slots whenever dates/type change (new or when empty)
   useEffect(() => {
     if (vacationType === 'SELL_ALL') {
       setCoverages([]);
       return;
     }
-    if (!startDate || !endDate || coverageSlots.length === 0) return;
-    // Keep manual edits if user already has coverages with people assigned for this plan edit
-    // but refresh dates/people from recommendations for new plans or empty coverages
+    if (!startDate || !endDate || !coverageResult || coverageResult.slots.length === 0) return;
     if (!plan || coverages.length === 0 || coverages.every((c) => !c.collaboratorId)) {
-      setCoverages(buildCoveragesFromSlots(coverageSlots));
+      setCoverages(buildCoveragesFromResult(coverageResult));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coverageSlots, vacationType, startDate, endDate]);
+  }, [coverageResult, vacationType, startDate, endDate]);
 
   const colabOptions = [
     { value: '', label: 'Selecionar colaborador…' },
@@ -159,6 +180,9 @@ export default function VacationForm({ plan, onClose }: Props) {
       .filter((c) => c.id !== collabId)
       .map((c) => ({ value: c.id, label: `${c.name} (${c.role})` })),
   ];
+
+  const nameOf = (id: string | null) =>
+    id ? activeColabs.find((c) => c.id === id)?.name ?? id : '—';
 
   const handleCollabChange = (id: string) => {
     setCollabId(id);
@@ -190,12 +214,16 @@ export default function VacationForm({ plan, onClose }: Props) {
     setStartDate(opt.vacationStart);
     setEndDate(opt.vacationEnd);
     setAlignMsg('');
-    // Force coverage rebuild
     setCoverages([]);
   };
 
   const applySmartCoverages = () => {
-    setCoverages(buildCoveragesFromSlots(coverageSlots));
+    if (coverageResult) setCoverages(buildCoveragesFromResult(coverageResult));
+  };
+
+  const applyCombination = (combo: CoverageCombinationView) => {
+    if (!coverageResult) return;
+    setCoverages(coveragesFromCombination(combo, coverageResult.slots));
   };
 
   const handleCoverageChange = (idx: number, field: keyof VacationCoverage, value: string) => {
@@ -239,6 +267,15 @@ export default function VacationForm({ plan, onClose }: Props) {
       vacationType === 'SELL_ALL'
         ? []
         : coverages.filter((c) => c.collaboratorId && c.startDate && c.endDate);
+
+    // Duas pessoas não podem cobrir a mesma semana (mesmas datas + overlap total)
+    if (validCoverages.length >= 2) {
+      const [a, b] = validCoverages;
+      if (a.collaboratorId === b.collaboratorId) {
+        setError('Dois turnos não podem ser cobertos pela mesma pessoa. Escolha substitutos distintos.');
+        return;
+      }
+    }
 
     if (vacationType === 'FULL' && status === 'confirmed' && validCoverages.length === 0) {
       setError('Adicione ao menos uma cobertura antes de confirmar férias integrais.');
@@ -416,7 +453,7 @@ export default function VacationForm({ plan, onClose }: Props) {
                       className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-accent)] transition hover:bg-[var(--app-accent-soft)]"
                     >
                       <Sparkles className="size-3.5" />
-                      Aplicar sugestões
+                      Melhor combinação
                     </button>
                   )}
                   <button
@@ -429,6 +466,12 @@ export default function VacationForm({ plan, onClose }: Props) {
                 </div>
               </div>
 
+              {coverageResult?.bestSummary && (
+                <p className="rounded-xl border border-[var(--app-accent)]/35 bg-[var(--app-accent-soft)] px-3 py-2 text-[12px] text-[var(--app-text)]">
+                  Meta POB {coverageResult.targetPob} a bordo · {coverageResult.bestSummary}
+                </p>
+              )}
+
               {coverageSlots.length > 0 && (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {coverageSlots.map((slot) => (
@@ -438,21 +481,77 @@ export default function VacationForm({ plan, onClose }: Props) {
                     >
                       <p className="text-[12px] font-semibold text-[var(--app-text)]">{slot.title}</p>
                       <p className="mt-0.5 text-[11px] text-[var(--app-text-muted)]">
-                        {formatDateBR(slot.startDate)} → {formatDateBR(slot.endDate)}
+                        Semana {formatDateBR(slot.startDate)} → {formatDateBR(slot.endDate)}
                       </p>
                       {slot.recommendedCandidate && (
-                        <p className="mt-1 text-[11px] font-medium text-[var(--status-escala)]">
-                          Sugestão: {slot.recommendedCandidate.name}
-                        </p>
+                        <>
+                          <p className="mt-1 text-[11px] font-medium text-[var(--status-escala)]">
+                            {slot.recommendedCandidate.name}
+                            {slot.recommendedBadge ? ` · ${slot.recommendedBadge}` : ''}
+                          </p>
+                          {slot.recommendedCoverageStart && (
+                            <p className="text-[11px] text-[var(--app-text-muted)]">
+                              Dobra {formatDateBR(slot.recommendedCoverageStart)} →{' '}
+                              {formatDateBR(slot.recommendedCoverageEnd || '')}
+                              {slot.lagDays > 0 ? ` · defasagem ${slot.lagDays}d` : ''}
+                            </p>
+                          )}
+                          {slot.recommendedReason && (
+                            <p className="mt-1 text-[10px] leading-snug text-[var(--app-text-muted)]">
+                              {slot.recommendedReason}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   ))}
                 </div>
               )}
 
+              {coverageResult && coverageResult.combinations.length > 1 && (
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold tracking-wide text-[var(--app-text-muted)] uppercase">
+                    Outras combinações
+                  </p>
+                  <div className="space-y-1.5">
+                    {coverageResult.combinations.slice(0, 5).map((combo, idx) => (
+                      <button
+                        key={`${combo.week1CollaboratorId}-${combo.week2CollaboratorId}-${idx}`}
+                        type="button"
+                        onClick={() => applyCombination(combo)}
+                        className="flex w-full cursor-pointer items-start justify-between gap-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-left transition hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-soft)]"
+                      >
+                        <div>
+                          <p className="text-[11px] font-semibold text-[var(--app-text)]">
+                            {idx === 0 ? '★ Recomendada' : `Opção ${idx + 1}`}
+                            {' · '}
+                            {combo.daysAtTargetPob}/{combo.totalMissedDays} dias POB{' '}
+                            {coverageResult.targetPob}
+                          </p>
+                          <p className="text-[10px] text-[var(--app-text-muted)]">
+                            1ª: {nameOf(combo.week1CollaboratorId)}
+                            {combo.week1Start
+                              ? ` (${formatDateBR(combo.week1Start)}→${formatDateBR(combo.week1End || '')})`
+                              : ''}
+                            {' · '}
+                            2ª: {nameOf(combo.week2CollaboratorId)}
+                            {combo.week2Start
+                              ? ` (${formatDateBR(combo.week2Start)}→${formatDateBR(combo.week2End || '')})`
+                              : ''}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-[10px] font-semibold text-[var(--app-accent)]">
+                          Aplicar
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {coverages.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-[var(--app-border)] px-3 py-4 text-center text-[12px] text-[var(--app-text-muted)]">
-                  Nenhuma cobertura. Use “Aplicar sugestões” ou adicione manualmente.
+                  Nenhuma cobertura. Use “Melhor combinação” ou adicione manualmente.
                 </p>
               ) : (
                 coverages.map((cov, i) => (

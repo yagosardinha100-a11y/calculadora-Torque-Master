@@ -1,5 +1,6 @@
-import { parseISO, addDays, format, differenceInCalendarDays } from 'date-fns';
-import type { Collaborator, Turma, ScheduleEvent, VacationPlan, VacationCoverage, VacationType } from './types';
+import { parseISO, format } from 'date-fns';
+import type { Collaborator, Turma, ScheduleEvent, VacationPlan, VacationType } from './types';
+import { analyzeVacationCoverage } from './coverageEngine';
 
 export interface Vacation30DayOption {
   vacationStart: string; // YYYY-MM-DD
@@ -218,6 +219,12 @@ export interface CandidateRecommendation {
   escalaDays: number;
   hasConflict: boolean;
   conflicts: string[];
+  /** Dias reais sugeridos para a dobra (podem ser < 7 por defasagem). */
+  coverageStart?: string;
+  coverageEnd?: string;
+  coveredDays?: number;
+  lagDays?: number;
+  remainingFolgaDays?: number;
 }
 
 export interface CoverageSlotSuggestion {
@@ -226,11 +233,43 @@ export interface CoverageSlotSuggestion {
   subtitle: string;
   strategyName: string;
   strategyCode: 'prolong' | 'anticipate';
-  startDate: string; // YYYY-MM-DD
-  endDate: string;   // YYYY-MM-DD
+  startDate: string; // YYYY-MM-DD (semana)
+  endDate: string;   // YYYY-MM-DD (semana)
   daysCount: number; // 7 days
   recommendedCandidate: Collaborator | null;
+  /** Janela real de dobra do recomendado (respeita ≤7 / folga≥7 / defasagem). */
+  recommendedCoverageStart: string | null;
+  recommendedCoverageEnd: string | null;
+  recommendedReason: string | null;
+  recommendedBadge: string | null;
+  coveredDaysInWeek: number;
+  lagDays: number;
   candidates: CandidateRecommendation[];
+}
+
+export interface CoverageCombinationView {
+  score: number;
+  daysAtTargetPob: number;
+  totalMissedDays: number;
+  uncoveredDays: number;
+  summary: string;
+  week1CollaboratorId: string | null;
+  week1Start: string | null;
+  week1End: string | null;
+  week1Strategy: 'prolong' | 'anticipate' | null;
+  week2CollaboratorId: string | null;
+  week2Start: string | null;
+  week2End: string | null;
+  week2Strategy: 'prolong' | 'anticipate' | null;
+}
+
+export interface CoverageSuggestionsResult {
+  slots: CoverageSlotSuggestion[];
+  combinations: CoverageCombinationView[];
+  bestSummary: string | null;
+  targetPob: number;
+  missedWorkStart: string;
+  missedWorkEnd: string;
 }
 
 function getColabBaselineStatusOnDate(
@@ -249,10 +288,6 @@ export function formatDateBR(dateStr: string): string {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}`;
-}
-
-function datesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
-  return start1 <= end2 && end1 >= start2;
 }
 
 export function normalizeRoleKey(role: string): 'chefe' | 'supervisor' | 'mecanico' | 'assistente' | 'other' {
@@ -302,34 +337,118 @@ export function canRoleCover(substituteRole: string, vacationerRole: string): bo
   return subKey === vacKey;
 }
 
-function getCandidateConflicts(
-  colabId: string,
-  slotStart: string,
-  slotEnd: string,
+/**
+ * Calcula 1ª/2ª semana de cobertura com as regras da empresa:
+ * prolong ≤7d, antecipação com folga restante ≥7d, 1 pessoa por semana,
+ * defasagem entre embarques (ex. terça vs quinta) e melhor combinação para POB≈5.
+ */
+export function calculateCoverageSuggestions(
+  vacationer: Collaborator,
+  vacationStart: string,
+  vacationEnd: string,
+  allCollaborators: Collaborator[],
+  allTurmas: Turma[],
   allEvents: ScheduleEvent[] = [],
-  allVacations: VacationPlan[] = []
-): string[] {
-  const conflicts: string[] = [];
+  allVacations: VacationPlan[] = [],
+  vacationType: VacationType = 'FULL',
+): CoverageSuggestionsResult {
+  const analysis = analyzeVacationCoverage(
+    vacationer,
+    vacationStart,
+    vacationEnd,
+    allCollaborators,
+    allTurmas,
+    allEvents,
+    allVacations,
+    vacationType,
+  );
 
-  for (const ev of allEvents) {
-    if (ev.collaboratorId === colabId && datesOverlap(ev.startDate, ev.endDate, slotStart, slotEnd)) {
-      conflicts.push(`${ev.status} (${formatDateBR(ev.startDate)} a ${formatDateBR(ev.endDate)}${ev.note ? `: ${ev.note}` : ''})`);
-    }
-  }
+  const slots: CoverageSlotSuggestion[] = analysis.slots.map((slot) => {
+    const recommendedId = slot.recommended?.collaborator.id ?? null;
+    const candidates: CandidateRecommendation[] = slot.actions.map((action) => ({
+      collaborator: action.collaborator,
+      isRecommended: recommendedId === action.collaborator.id && !action.hasConflict,
+      score: action.score,
+      reason: action.reason,
+      strategy: action.strategy,
+      badgeLabel: action.badgeLabel,
+      prolongAnalysis: {
+        canProlong: action.strategy === 'prolong',
+        explanation:
+          action.strategy === 'prolong'
+            ? action.reason
+            : `Prolongamento avaliado; melhor opção neste caso: ${action.strategy}.`,
+      },
+      anticipateAnalysis: {
+        canAnticipate: action.strategy === 'anticipate',
+        explanation:
+          action.strategy === 'anticipate'
+            ? action.reason
+            : `Antecipação avaliada; melhor opção neste caso: ${action.strategy}.`,
+      },
+      folgaDays: action.coveredDays,
+      escalaDays: action.weekDays - action.coveredDays,
+      hasConflict: action.hasConflict,
+      conflicts: action.conflicts,
+      coverageStart: action.startDate,
+      coverageEnd: action.endDate,
+      coveredDays: action.coveredDays,
+      lagDays: action.lagDays,
+      remainingFolgaDays: action.remainingFolgaDays,
+    }));
 
-  for (const vac of allVacations) {
-    if (vac.collaboratorId === colabId && datesOverlap(vac.startDate, vac.endDate, slotStart, slotEnd)) {
-      conflicts.push(`Férias (${formatDateBR(vac.startDate)} a ${formatDateBR(vac.endDate)})`);
-    }
-  }
+    // Incluir candidatos sem ação válida (função incompatível / sem janela) no fim? Mantemos só ações válidas.
+    return {
+      slotNumber: slot.slotNumber,
+      title: slot.title,
+      subtitle: slot.subtitle,
+      strategyName:
+        slot.strategyHint === 'prolong'
+          ? 'Prolongar embarque (+7d máx.)'
+          : 'Antecipar embarque (−7d, folga ≥7d)',
+      strategyCode: slot.strategyHint,
+      startDate: slot.weekStart,
+      endDate: slot.weekEnd,
+      daysCount: slot.daysCount,
+      recommendedCandidate: slot.recommended?.collaborator ?? null,
+      recommendedCoverageStart: slot.recommended?.startDate ?? null,
+      recommendedCoverageEnd: slot.recommended?.endDate ?? null,
+      recommendedReason: slot.recommended?.reason ?? null,
+      recommendedBadge: slot.recommended?.badgeLabel ?? null,
+      coveredDaysInWeek: slot.recommended?.coveredDays ?? 0,
+      lagDays: slot.recommended?.lagDays ?? 0,
+      candidates,
+    };
+  });
 
-  return conflicts;
+  const combinations: CoverageCombinationView[] = analysis.combinations.map((c) => ({
+    score: c.score,
+    daysAtTargetPob: c.daysAtTargetPob,
+    totalMissedDays: c.totalMissedDays,
+    uncoveredDays: c.uncoveredDays,
+    summary: c.summary,
+    week1CollaboratorId: c.week1?.collaborator.id ?? null,
+    week1Start: c.week1?.startDate ?? null,
+    week1End: c.week1?.endDate ?? null,
+    week1Strategy: c.week1?.strategy ?? null,
+    week2CollaboratorId: c.week2?.collaborator.id ?? null,
+    week2Start: c.week2?.startDate ?? null,
+    week2End: c.week2?.endDate ?? null,
+    week2Strategy: c.week2?.strategy ?? null,
+  }));
+
+  return {
+    slots,
+    combinations,
+    bestSummary: analysis.best?.summary ?? null,
+    targetPob: analysis.targetPob,
+    missedWorkStart: analysis.missedWorkStart,
+    missedWorkEnd: analysis.missedWorkEnd,
+  };
 }
 
 /**
- * Calculates 2 coverage slots (7 days each) for a 14-day missed work period during vacation,
- * evaluating ALL candidates for both strategies (Prolongar stay / Desembarcar +7d e Antecipar arrival / Embarcar -7d)
- * and highlighting any event conflicts (Treinamento, Exame Médico, Atestado, etc.).
+ * @deprecated Prefer calculateCoverageSuggestions — mantido para compatibilidade.
  */
 export function calculateCoverageSlotsAndSuggestions(
   vacationer: Collaborator,
@@ -339,269 +458,18 @@ export function calculateCoverageSlotsAndSuggestions(
   allTurmas: Turma[],
   allEvents: ScheduleEvent[] = [],
   allVacations: VacationPlan[] = [],
-  vacationType: VacationType = 'FULL'
+  vacationType: VacationType = 'FULL',
 ): CoverageSlotSuggestion[] {
-  if (!vacationStart || !vacationEnd || !vacationer || vacationType === 'SELL_ALL') return [];
-
-  // Determine the 14-day missed work period based on vacation alignment
-  const vacationerTurma = allTurmas.find(t => t.id === vacationer.turmaId);
-  const alignment = checkVacationAlignment(vacationStart, vacationEnd, vacationer, vacationerTurma);
-
-  let missedWorkStart: string;
-  let missedWorkEnd: string;
-
-  if (alignment.isAligned && alignment.suggestedCoverage) {
-    missedWorkStart = alignment.suggestedCoverage.start;
-    missedWorkEnd = alignment.suggestedCoverage.end;
-  } else {
-    missedWorkStart = vacationStart;
-    missedWorkEnd = addDaysToStr(vacationStart, 13);
-  }
-
-  // Split into 2 x 7-day slots
-  const slot1Start = missedWorkStart;
-  const slot1End = addDaysToStr(missedWorkStart, 6); // 7 days
-
-  // Para SELL_10 (venda parcial), o embarque prolonga em mais 7 dias
-  // A ausência a ser coberta inicia na verdade após esses primeiros 7 dias de prolongamento.
-  // E o embarque oficial terminaria após o slot 1 (dia 7 a 14)
-  const slot2Start = addDaysToStr(missedWorkStart, 7);
-  const slot2End = missedWorkEnd; // 7 days (total 14)
-
-  const activeOthers = allCollaborators.filter(c => c.active !== false && c.id !== vacationer.id);
-
-  const evaluateCandidateForSlot = (
-    colab: Collaborator,
-    slotStart: string,
-    slotEnd: string,
-    preferredStrategy: 'prolong' | 'anticipate',
-    excludedColabIds: string[] = []
-  ): CandidateRecommendation => {
-
-    const isRoleAllowed = canRoleCover(colab.role, vacationer.role);
-    const isSameRole = colab.role === vacationer.role;
-
-    const conflicts: string[] = [];
-
-    // Check role eligibility
-    if (!isRoleAllowed) {
-      conflicts.push(`Incompatibilidade de Função: O cargo de ${colab.role} não possui permissão para cobrir ${vacationer.role}`);
-    }
-
-    // Check if candidate is already assigned to another slot in these vacations
-    if (excludedColabIds.includes(colab.id)) {
-      conflicts.push(`Já Atribuído: Este colaborador já foi recomendado para cobrir os outros 7 dias deste período`);
-    }
-
-    // Check schedule conflicts (Treinamento, Exame, Atestado, Férias)
-    const eventConflicts = getCandidateConflicts(colab.id, slotStart, slotEnd, allEvents, allVacations);
-    conflicts.push(...eventConflicts);
-
-    // Calculate exact number of folga and escala days during this 7-day slot
-    const slotDaysCount = getDaysDiff(slotEnd, slotStart) + 1;
-    let folgaDays = 0;
-    let escalaDays = 0;
-
-    for (let i = 0; i < slotDaysCount; i++) {
-      const d = addDaysToStr(slotStart, i);
-      const st = getColabBaselineStatusOnDate(d, colab, allTurmas);
-      if (st === 'Folga') folgaDays++;
-      else escalaDays++;
-    }
-
-    // Hard blockers (Incompatible role, already assigned, event conflict, or 0 folga days)
-    const isHardBlocked = !isRoleAllowed || excludedColabIds.includes(colab.id) || eventConflicts.length > 0 || folgaDays === 0;
-
-    const is100PercentOff = folgaDays === slotDaysCount && escalaDays === 0;
-
-    // Prolong Strategy Check:
-    // Was on board on the day right before slotStart, and scheduled for folga on slotStart
-    const dayBeforeSlot = addDaysToStr(slotStart, -1);
-    const statusBefore = getColabBaselineStatusOnDate(dayBeforeSlot, colab, allTurmas);
-    const statusOnStart = getColabBaselineStatusOnDate(slotStart, colab, allTurmas);
-
-    const canProlong = statusBefore === 'Escala' && statusOnStart === 'Folga';
-    const prolongExplanation = canProlong
-      ? `Estará a bordo em ${formatDateBR(dayBeforeSlot)}. Pode prolongar +7 dias e desembarcar em ${formatDateBR(slotEnd)}.`
-      : `Não está a bordo em ${formatDateBR(dayBeforeSlot)} (Sem emenda ao fim de escala).`;
-
-    // Anticipate Strategy Check:
-    // Is on folga on slotEnd, and scheduled for regular shift on dayAfterSlot
-    const dayAfterSlot = addDaysToStr(slotEnd, 1);
-    const statusOnEnd = getColabBaselineStatusOnDate(slotEnd, colab, allTurmas);
-    const statusAfter = getColabBaselineStatusOnDate(dayAfterSlot, colab, allTurmas);
-
-    const canAnticipate = statusOnEnd === 'Folga' && statusAfter === 'Escala';
-    const anticipateExplanation = canAnticipate
-      ? `Inicia escala em ${formatDateBR(dayAfterSlot)}. Pode antecipar em -7 dias e embarcar em ${formatDateBR(slotStart)}.`
-      : `Não inicia escala em ${formatDateBR(dayAfterSlot)} (Sem emenda ao início de escala).`;
-
-    let score = 0;
-    let mainReason = '';
-    let selectedStrategy: 'prolong' | 'anticipate' | 'extra' = preferredStrategy;
-    let badgeLabel = '';
-
-    if (isHardBlocked) {
-      score = -100;
-      if (!isRoleAllowed) {
-        mainReason = `⚠️ FUNÇÃO INCOMPATÍVEL: O cargo de ${colab.role} não possui permissão para cobrir ${vacationer.role}.`;
-        badgeLabel = 'Impedido (Cargo Incompatível)';
-      } else if (excludedColabIds.includes(colab.id)) {
-        mainReason = `⚠️ JÁ ATRIBUÍDO: Selecionado para o 1º turno de cobertura.`;
-        badgeLabel = 'Impedido (Atribuído ao 1º Turno)';
-      } else if (eventConflicts.length > 0) {
-        mainReason = `⚠️ CONFLITO DE AGENDA: ${eventConflicts.join('; ')}`;
-        badgeLabel = 'Impedido (Conflito de Agenda)';
-      } else {
-        mainReason = `⚠️ 100% EM ESCALA REGULAR: Estará em serviço a bordo durante todos os 7 dias do período.`;
-        badgeLabel = 'Impedido (Sem Folga no Período)';
-      }
-    } else if (is100PercentOff) {
-      // 100% Free in Folga during all 7 days of the slot with valid role and no conflicts!
-      if (preferredStrategy === 'prolong' && canProlong) {
-        score = isSameRole ? 100 : 92;
-        selectedStrategy = 'prolong';
-        mainReason = isSameRole
-          ? `⭐ EXCELENTE (100% Livre 7/7d): Já estará a bordo até ${formatDateBR(dayBeforeSlot)} e prolonga +7 dias (Desembarca em ${formatDateBR(slotEnd)})`
-          : `⭐ EXCELENTE (100% Livre 7/7d): Permissão de cargo (${colab.role} cobre ${vacationer.role}) & prolonga +7 dias (Desembarca em ${formatDateBR(slotEnd)})`;
-        badgeLabel = 'Ideal: Prolonga +7d (Já a bordo)';
-      } else if (preferredStrategy === 'anticipate' && canAnticipate) {
-        score = isSameRole ? 100 : 92;
-        selectedStrategy = 'anticipate';
-        mainReason = isSameRole
-          ? `⭐ EXCELENTE (100% Livre 7/7d): Inicia escala regular em ${formatDateBR(dayAfterSlot)} e antecipa -7 dias (Embarca em ${formatDateBR(slotStart)})`
-          : `⭐ EXCELENTE (100% Livre 7/7d): Permissão de cargo (${colab.role} cobre ${vacationer.role}) & antecipa -7 dias (Embarca em ${formatDateBR(slotStart)})`;
-        badgeLabel = 'Ideal: Antecipa -7d (Emenda com escala)';
-      } else if (canProlong) {
-        score = isSameRole ? 88 : 80;
-        selectedStrategy = 'prolong';
-        mainReason = `100% Livre (7/7d em Folga): Pode prolongar +7d (Desembarca em ${formatDateBR(slotEnd)} vindo da escala em ${formatDateBR(dayBeforeSlot)})`;
-        badgeLabel = 'Válido: Prolonga +7d';
-      } else if (canAnticipate) {
-        score = isSameRole ? 88 : 80;
-        selectedStrategy = 'anticipate';
-        mainReason = `100% Livre (7/7d em Folga): Pode antecipar -7d (Embarca em ${formatDateBR(slotStart)} e emenda com escala em ${formatDateBR(dayAfterSlot)})`;
-        badgeLabel = 'Válido: Antecipa -7d';
-      } else {
-        score = isSameRole ? 82 : 75;
-        selectedStrategy = 'extra';
-        mainReason = `100% Livre (7/7d em Folga Regular): Totalmente disponível em folga durante todo o período (${colab.role})`;
-        badgeLabel = 'Disponível em Folga (7/7d)';
-      }
-    } else {
-      // Partial coverage fallback (e.g. 1 to 6 days free in folga)
-      score = (folgaDays * 10) + (isSameRole ? 5 : 0);
-      selectedStrategy = 'extra';
-      badgeLabel = `⚠️ Cobertura Parcial (${folgaDays}/7d em Folga)`;
-      mainReason = `⚡ COBERTURA PARCIAL: Possui ${folgaDays} dia(s) de folga no período (${escalaDays}d em escala regular). Sugerido como a melhor opção disponível.`;
-    }
-
-    return {
-      collaborator: colab,
-      isRecommended: score > 0 && !isHardBlocked,
-      score,
-      reason: mainReason,
-      strategy: selectedStrategy,
-      badgeLabel,
-      prolongAnalysis: {
-        canProlong,
-        explanation: prolongExplanation,
-      },
-      anticipateAnalysis: {
-        canAnticipate,
-        explanation: anticipateExplanation,
-      },
-      folgaDays,
-      escalaDays,
-      hasConflict: isHardBlocked,
-      conflicts: isHardBlocked ? conflicts : [],
-    };
-  };
-
-  // SLOT 1 EVALUATION (Evaluated independently for Turno 1)
-  const slot1Candidates = activeOthers
-    .map(colab => evaluateCandidateForSlot(colab, slot1Start, slot1End, 'prolong', []))
-    .sort((a, b) => b.score - a.score || (b.folgaDays - a.folgaDays) || a.collaborator.name.localeCompare(b.collaborator.name));
-
-  // SLOT 2 EVALUATION (Evaluated independently for Turno 2)
-  const slot2Candidates = activeOthers
-    .map(colab => evaluateCandidateForSlot(colab, slot2Start, slot2End, 'anticipate', []))
-    .sort((a, b) => b.score - a.score || (b.folgaDays - a.folgaDays) || a.collaborator.name.localeCompare(b.collaborator.name));
-
-  // Global Pair Optimization: Find the best pair of DISTINCT collaborators (c1 for Turno 1, c2 for Turno 2)
-  let bestPair: { c1: typeof slot1Candidates[0] | null; c2: typeof slot2Candidates[0] | null; combinedScore: number } = {
-    c1: null,
-    c2: null,
-    combinedScore: -Infinity,
-  };
-
-  for (const c1 of slot1Candidates) {
-    for (const c2 of slot2Candidates) {
-      if (c1.collaborator.id === c2.collaborator.id) continue;
-
-      let pairScore = c1.score + c2.score;
-      if (!c1.hasConflict) pairScore += 500;
-      if (!c2.hasConflict) pairScore += 500;
-
-      if (pairScore > bestPair.combinedScore) {
-        bestPair = { c1, c2, combinedScore: pairScore };
-      }
-    }
-  }
-
-  // Fallbacks if team size is <= 1
-  if (!bestPair.c1 && slot1Candidates.length > 0) {
-    bestPair.c1 = slot1Candidates[0];
-  }
-  if (!bestPair.c2 && slot2Candidates.length > 0) {
-    bestPair.c2 = slot2Candidates.find(c => c.collaborator.id !== bestPair.c1?.collaborator.id) || slot2Candidates[0];
-  }
-
-  const recommended1 = bestPair.c1 ? bestPair.c1.collaborator : null;
-  const recommended2 = bestPair.c2 ? bestPair.c2.collaborator : null;
-
-  // Mark isRecommended accurately for candidates in each slot
-  const finalSlot1Candidates = slot1Candidates.map(c => ({
-    ...c,
-    isRecommended: recommended1 ? c.collaborator.id === recommended1.id && !c.hasConflict : c.isRecommended,
-  }));
-
-  const finalSlot2Candidates = slot2Candidates.map(c => ({
-    ...c,
-    isRecommended: recommended2 ? c.collaborator.id === recommended2.id && !c.hasConflict : c.isRecommended,
-  }));
-
-  const slot1Suggestion: CoverageSlotSuggestion = {
-    slotNumber: 1,
-    title: '1º Turno de Cobertura (7 dias)',
-    subtitle: 'Prolongamento de Embarque (+7 dias)',
-    strategyName: 'Desembarcar +7d depois (ou Antecipar)',
-    strategyCode: 'prolong',
-    startDate: slot1Start,
-    endDate: slot1End,
-    daysCount: 7,
-    recommendedCandidate: recommended1,
-    candidates: finalSlot1Candidates,
-  };
-
-  const slot2Suggestion: CoverageSlotSuggestion = {
-    slotNumber: 2,
-    title: '2º Turno de Cobertura (7 dias)',
-    subtitle: 'Antecipação de Embarque (-7 dias)',
-    strategyName: 'Embarcar -7d antes (ou Prolongar)',
-    strategyCode: 'anticipate',
-    startDate: slot2Start,
-    endDate: slot2End,
-    daysCount: 7,
-    recommendedCandidate: recommended2,
-    candidates: finalSlot2Candidates,
-  };
-
-  if (vacationType === 'SELL_10') {
-    return [slot2Suggestion];
-  }
-
-  return [slot1Suggestion, slot2Suggestion];
+  return calculateCoverageSuggestions(
+    vacationer,
+    vacationStart,
+    vacationEnd,
+    allCollaborators,
+    allTurmas,
+    allEvents,
+    allVacations,
+    vacationType,
+  ).slots;
 }
 
 export interface DailyCoverageDetail {
