@@ -645,10 +645,16 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                               else capClass = 'rounded-lg';
                             }
 
+                            // Timeline: label only on the first day of a contiguous block
+                            const showBlockLabel =
+                              viewMode === 'timeline'
+                                ? isStatusBlock && !isSamePrev
+                                : isStatusBlock;
+
                             return (
                               <td 
                                 key={d.dateStr} 
-                                className="p-[1px] relative cursor-pointer select-none transition-all hover:z-30"
+                                className="p-[1px] relative cursor-pointer select-none transition-all hover:z-30 min-w-[42px] w-[42px]"
                                 onClick={() => setSelectedCell({ cell, collaboratorName: colab.name })}
                                 title={`${colab.name} - ${format(d.date, 'dd/MM/yyyy')}: ${cell.status}${cell.event?.motive ? ` (${cell.event.motive})` : ''}`}
                               >
@@ -659,11 +665,11 @@ export function ScheduleGrid({ startMonth, monthsCount = 12 }: ScheduleGridProps
                                 )}>
                                   {cell.status === 'Folga' ? (
                                     <span className={isLight ? "text-slate-300 font-bold text-[10px]" : "text-slate-800 font-bold text-[10px]"}>•</span>
-                                  ) : (
+                                  ) : showBlockLabel ? (
                                     <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tighter px-0.5 truncate text-white drop-shadow-xs leading-none">
                                       {style?.shortLabel || cell.status}
                                     </span>
-                                  )}
+                                  ) : null}
                                 </div>
                               </td>
                             );

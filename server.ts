@@ -15,9 +15,12 @@ async function startServer() {
   // Auto seed DB on boot
   await seedDatabaseIfEmpty();
 
-  // Vite middleware or production static
+  // Vite middleware or production static.
+  // Prefer production static for tunnels/previews: Tailwind utilities are fully
+  // generated in `vite build`. MiddlewareMode can miss utility generation.
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
+      configFile: path.join(process.cwd(), 'vite.config.ts'),
       server: {
         middlewareMode: true,
         allowedHosts: true,
