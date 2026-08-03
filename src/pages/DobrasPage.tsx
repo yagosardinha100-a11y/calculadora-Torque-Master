@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -21,6 +22,7 @@ import {
 
 export default function DobrasPage() {
   const { collaborators, events: allEvents, turmas, loading, addEvent, deleteEvent } = useData();
+  const { canEdit } = useAuth();
 
   if (loading) return <GenericPageSkeleton />;
 
@@ -85,10 +87,12 @@ export default function DobrasPage() {
         description="Coberturas, justificativas e dias extras embarcados."
         icon={<Sparkles className="size-5" />}
         actions={
-          <Button onClick={() => setShowAddModal(true)} className="w-full gap-2 sm:w-auto">
-            <Plus className="size-4" />
-            Lançar dobra
-          </Button>
+          canEdit ? (
+            <Button onClick={() => setShowAddModal(true)} className="w-full gap-2 sm:w-auto">
+              <Plus className="size-4" />
+              Lançar dobra
+            </Button>
+          ) : null
         }
       />
 
@@ -185,14 +189,18 @@ export default function DobrasPage() {
                         {evt.motive || 'Dobra de cobertura'}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteId(evt.id)}
-                          className="text-[var(--app-danger)] hover:bg-rose-500/10"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        {canEdit ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteId(evt.id)}
+                            className="text-[var(--app-danger)] hover:bg-rose-500/10"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-[var(--app-text-faint)]">—</span>
+                        )}
                       </td>
                     </tr>
                   );

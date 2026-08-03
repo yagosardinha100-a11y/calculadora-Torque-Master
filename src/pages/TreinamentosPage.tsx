@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -33,6 +34,7 @@ const COMMON_COURSES = [
 
 export default function TreinamentosPage() {
   const { collaborators, trainings, loading, addTraining, deleteTraining } = useData();
+  const { canEdit } = useAuth();
 
   if (loading) {
     return <GenericPageSkeleton />;
@@ -112,10 +114,12 @@ export default function TreinamentosPage() {
         description="Certificações offshore, NRs e controle de validade."
         icon={<GraduationCap className="size-5" />}
         actions={
-          <Button onClick={() => setShowAddModal(true)} className="w-full gap-2 sm:w-auto">
-            <Plus className="size-4" />
-            Cadastrar Certificado
-          </Button>
+          canEdit ? (
+            <Button onClick={() => setShowAddModal(true)} className="w-full gap-2 sm:w-auto">
+              <Plus className="size-4" />
+              Cadastrar Certificado
+            </Button>
+          ) : null
         }
       />
 
@@ -259,14 +263,18 @@ export default function TreinamentosPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteId(tr.id)}
-                          className="text-[var(--app-danger)] hover:bg-rose-500/10"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        {canEdit ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteId(tr.id)}
+                            className="text-[var(--app-danger)] hover:bg-rose-500/10"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-[var(--app-text-faint)]">—</span>
+                        )}
                       </td>
                     </tr>
                   );

@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
@@ -27,6 +28,7 @@ interface EventSidebarProps {
 
 export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarProps) {
   const { addEvent, updateEvent, deleteEvent } = useData();
+  const { canEdit } = useAuth();
   const [status, setStatus] = useState<Status>('Dobra');
   const [endDate, setEndDate] = useState('');
   const [motive, setMotive] = useState('');
@@ -97,7 +99,9 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
               <Calendar className="size-5" />
             </div>
             <div>
-              <h2 className="font-display text-[14px] font-semibold">Editar dia</h2>
+              <h2 className="font-display text-[14px] font-semibold">
+                {canEdit ? 'Editar dia' : 'Detalhes do dia'}
+              </h2>
               <p className="text-[12px] text-white/65">{collaboratorName}</p>
             </div>
           </div>
@@ -142,7 +146,12 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
           <form id="event-form" onSubmit={handleSave} className="space-y-4">
             <div>
               <FieldLabel>Novo status</FieldLabel>
-              <Select value={status} onChange={(e) => setStatus(e.target.value as Status)} required>
+              <Select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as Status)}
+                required
+                disabled={!canEdit}
+              >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -159,6 +168,7 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
                 min={cell.dateStr}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
+                disabled={!canEdit}
               />
               <p className="mt-1.5 flex items-center gap-1 text-[11px] text-[var(--app-text-faint)]">
                 <Info className="size-3 shrink-0 text-[var(--app-accent)]" />
@@ -173,6 +183,7 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
                   value={motive}
                   onChange={(e) => setMotive(e.target.value)}
                   placeholder="Ex: Cobertura emergencial de férias"
+                  disabled={!canEdit}
                 />
               </div>
             ) : null}
@@ -180,17 +191,18 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
             <div>
               <FieldLabel>Observações</FieldLabel>
               <textarea
-                className="min-h-[90px] w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-faint)] focus:border-[var(--app-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent-soft)]"
+                className="min-h-[90px] w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-faint)] focus:border-[var(--app-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent-soft)] disabled:cursor-not-allowed disabled:opacity-60"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Detalhes adicionais…"
+                disabled={!canEdit}
               />
             </div>
           </form>
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          {cell.event ? (
+          {canEdit && cell.event ? (
             <Button type="button" variant="danger" onClick={() => setShowConfirmDelete(true)} className="gap-2 text-xs">
               <Trash2 className="size-4" />
               Remover
@@ -200,12 +212,14 @@ export function EventSidebar({ cell, collaboratorName, onClose }: EventSidebarPr
           )}
           <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={onClose} className="text-xs">
-              Cancelar
+              {canEdit ? 'Cancelar' : 'Fechar'}
             </Button>
-            <Button type="submit" form="event-form" className="gap-2 text-xs">
-              <Save className="size-4" />
-              Salvar
-            </Button>
+            {canEdit ? (
+              <Button type="submit" form="event-form" className="gap-2 text-xs">
+                <Save className="size-4" />
+                Salvar
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>

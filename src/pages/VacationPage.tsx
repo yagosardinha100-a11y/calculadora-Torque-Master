@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { format, parseISO, differenceInCalendarDays, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -45,6 +46,7 @@ export default function VacationPage() {
     unconfirmVacationPlan,
     deleteVacationPlan,
   } = useData();
+  const { canEdit } = useAuth();
 
   const [selectedPlan, setSelectedPlan] = useState<VacationPlan | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -123,10 +125,12 @@ export default function VacationPage() {
         description="Programação de férias e coberturas para lançamento na escala."
         icon={<Palmtree className="size-5" />}
         actions={
-          <Button onClick={handleOpenNew} className="w-full gap-2 sm:w-auto">
-            <Plus className="size-4" />
-            Programar Férias
-          </Button>
+          canEdit ? (
+            <Button onClick={handleOpenNew} className="w-full gap-2 sm:w-auto">
+              <Plus className="size-4" />
+              Programar Férias
+            </Button>
+          ) : null
         }
       />
 
@@ -235,7 +239,7 @@ export default function VacationPage() {
               ? 'Tente remover os filtros ou buscar por outro termo.'
               : 'Programe as férias de um colaborador e defina quem fará a cobertura.'}
           </p>
-          {!searchTerm && filterStatus === 'all' && filterType === 'all' && (
+          {!searchTerm && filterStatus === 'all' && filterType === 'all' && canEdit && (
             <Button onClick={handleOpenNew} className="mt-4 gap-2 text-xs">
               Programar primeira férias
             </Button>
@@ -346,6 +350,7 @@ export default function VacationPage() {
                     </div>
                   </div>
 
+                  {canEdit ? (
                   <div className="flex shrink-0 items-center gap-2 self-end md:self-center">
                     <Button
                       variant="outline"
@@ -390,6 +395,7 @@ export default function VacationPage() {
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2 border-t border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
