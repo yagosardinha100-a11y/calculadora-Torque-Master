@@ -1,59 +1,78 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Deny everything by default; specific collections opt in below.
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Login UX allowlist is mirrored here for data access.
-    // Prefer promoting admins via /admins/{uid} created by a trusted operator.
     function isSignedIn() {
       return request.auth != null
         && request.auth.token.email != null
         && request.auth.token.email_verified == true;
     }
 
-    function isAllowlistedEmail() {
-      return request.auth.token.email in [
+    function currentEmail() {
+      return request.auth.token.email;
+    }
+
+    // Bootstrap editors — always editors, even before any authorization doc
+    // exists. Mirror this list in src/context/AuthContext.ts (BOOTSTRAP_EDITORS).
+    function isBootstrapEditor() {
+      return isSignedIn() && currentEmail() in [
         'odn1mecanicadept@gmail.com',
         'yago.sardinha100@gmail.com',
         'joubertribeir@gmail.com'
       ];
     }
 
-    function isAdminDoc() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    function authRole() {
+      return exists(/databases/$(database)/documents/authorizations/$(currentEmail()))
+        ? get(/databases/$(database)/documents/authorizations/$(currentEmail())).data.role
+        : '';
     }
 
-    function isAdmin() {
-      return isSignedIn() && (isAllowlistedEmail() || isAdminDoc());
+    // Editors can read + write. Viewers can only read.
+    function isEditor() {
+      return isSignedIn() && (isBootstrapEditor() || authRole() == 'editor');
     }
 
-    // Only existing admins can READ admin docs.
-    // Writes are denied from the client — promote via Console / trusted tooling.
-    match /admins/{uid} {
-      allow read: if isAdmin();
-      allow write: if false;
+    function isViewer() {
+      return isSignedIn() && (isBootstrapEditor() || authRole() == 'editor' || authRole() == 'viewer');
+    }
+
+    // Authorization registry (who can access, and with what role).
+    // A signed-in user may read their OWN authorization doc (needed to resolve
+    // their role at login). Editors may read all and manage everyone.
+    match /authorizations/{email} {
+      allow read: if isEditor() || (isSignedIn() && email == currentEmail());
+      allow write: if isEditor();
     }
 
     match /turmas/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isViewer();
+      allow write: if isEditor();
     }
 
     match /collaborators/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isViewer();
+      allow write: if isEditor();
     }
 
     match /events/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isViewer();
+      allow write: if isEditor();
     }
 
     match /vacations/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isViewer();
+      allow write: if isEditor();
     }
 
     match /trainings/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isViewer();
+      allow write: if isEditor();
     }
   }
 }

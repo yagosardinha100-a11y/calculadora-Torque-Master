@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -36,6 +37,7 @@ export default function CollaboratorsPage() {
     updateCollaborator,
     deleteCollaborator,
   } = useData();
+  const { canEdit } = useAuth();
 
   const turmas = contextTurmas && contextTurmas.length > 0 ? contextTurmas : DEFAULT_TURMAS;
 
@@ -110,6 +112,7 @@ export default function CollaboratorsPage() {
         }
       />
 
+      {canEdit ? (
       <SectionSurface
         title="Novo colaborador"
         subtitle="Função e data base vinculam à turma automaticamente"
@@ -154,6 +157,7 @@ export default function CollaboratorsPage() {
           </form>
         </div>
       </SectionSurface>
+      ) : null}
 
       <SectionSurface>
         <div className="overflow-x-auto">
@@ -186,6 +190,7 @@ export default function CollaboratorsPage() {
                       <td className="min-w-[170px] px-4 py-3">
                         <Select
                           value={colab.role}
+                          disabled={!canEdit}
                           onChange={(e) =>
                             void updateCollaborator(colab.id, { role: e.target.value as Role })
                           }
@@ -201,6 +206,7 @@ export default function CollaboratorsPage() {
                       <td className="min-w-[130px] px-4 py-3">
                         <Select
                           value={colab.turmaId}
+                          disabled={!canEdit}
                           onChange={(e) => void updateCollaborator(colab.id, { turmaId: e.target.value })}
                           className="h-8 text-xs font-semibold"
                         >
@@ -217,6 +223,7 @@ export default function CollaboratorsPage() {
                           <Input
                             type="date"
                             value={effectiveStartDate}
+                            disabled={!canEdit}
                             onChange={(e) =>
                               void updateCollaborator(colab.id, {
                                 startDate: e.target.value || undefined,
@@ -238,24 +245,29 @@ export default function CollaboratorsPage() {
                         <button
                           type="button"
                           onClick={() => void toggleActive(colab)}
+                          disabled={!canEdit}
                           className={
                             colab.active
-                              ? 'inline-flex rounded-md bg-teal-500/15 px-2.5 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300'
-                              : 'inline-flex rounded-md bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-[var(--app-text-muted)]'
+                              ? 'inline-flex rounded-md bg-teal-500/15 px-2.5 py-1 text-xs font-semibold text-teal-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-teal-300'
+                              : 'inline-flex rounded-md bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-[var(--app-text-muted)] disabled:cursor-not-allowed disabled:opacity-60'
                           }
                         >
                           {colab.active ? 'Ativo' : 'Inativo'}
                         </button>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-[var(--app-danger)] hover:bg-rose-500/10"
-                          onClick={() => setDeleteId(colab.id)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        {canEdit ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[var(--app-danger)] hover:bg-rose-500/10"
+                            onClick={() => setDeleteId(colab.id)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-[var(--app-text-faint)]">—</span>
+                        )}
                       </td>
                     </tr>
                   );

@@ -7,6 +7,7 @@ import DobrasPage from './pages/DobrasPage';
 import TreinamentosPage from './pages/TreinamentosPage';
 import RelatoriosPage from './pages/RelatoriosPage';
 import SettingsPage from './pages/SettingsPage';
+import UsersPage from './pages/UsersPage';
 import LoginPage from './pages/LoginPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ThemeProvider } from './context/ThemeContext';
@@ -18,7 +19,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <DataProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
 
@@ -31,6 +32,14 @@ export default function App() {
                   <Route path="treinamentos" element={<TreinamentosPage />} />
                   <Route path="relatorios" element={<RelatoriosPage />} />
                   <Route path="configuracoes" element={<SettingsPage />} />
+                  <Route
+                    path="usuarios"
+                    element={
+                      <ProtectedRoute requireEditor>
+                        <UsersPage />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Route>
               </Route>
             </Routes>

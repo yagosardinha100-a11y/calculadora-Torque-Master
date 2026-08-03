@@ -1,49 +1,60 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, firestore } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-
-export type UserRole = 'admin' | 'user';
+import type { AccessRole } from '../types';
+import { getAuthorization } from '../services/users';
 
 export interface User {
   id: string;
   username: string;
   name: string;
-  role: UserRole;
+  /** Effective access role, or null when the account has no access granted. */
+  role: AccessRole | null;
   avatar?: string;
   email?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  isAdmin: boolean;
+  /** True while the initial auth state is being resolved. */
   isLoading: boolean;
+  /** True when a signed-in user has no access granted (not authorized). */
+  accessDenied: boolean;
+  isEditor: boolean;
+  isViewer: boolean;
+  /** Convenience flag: whether the current user can edit (== isEditor). */
+  canEdit: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/** UX gate only — real security is firestore.rules */
-const ALLOWED_EMAILS = [
+/**
+ * Bootstrap editors — e-mails that are always granted editor access, even
+ * before any authorization document exists. This lets the first operator log
+ * in and manage everyone else from the app. Mirror this list in
+ * `firestore.rules` (function `isBootstrapEditor`).
+ */
+export const BOOTSTRAP_EDITORS: readonly string[] = [
   'odn1mecanicadept@gmail.com',
   'yago.sardinha100@gmail.com',
   'joubertribeir@gmail.com',
-] as const;
+];
 
-function isEmailAllowed(email?: string | null): boolean {
+export function isBootstrapEditor(email?: string | null): boolean {
   if (!email) return false;
-  return ALLOWED_EMAILS.some((allowed) => allowed === email.trim().toLowerCase());
+  const normalized = email.trim().toLowerCase();
+  return BOOTSTRAP_EDITORS.some((e) => e === normalized);
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
-  // Session comes ONLY from Firebase — never hydrate privileged state from localStorage
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -54,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Align with firestore.rules: email_verified == true
+      // Align with firestore.rules: require a verified e-mail.
       if (!fbUser.emailVerified) {
         await firebaseSignOut(auth);
         setUser(null);
@@ -65,26 +76,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if (!isEmailAllowed(fbUser.email)) {
-        await firebaseSignOut(auth);
-        setUser(null);
-        setIsLoading(false);
-        alert(
-          `Acesso não autorizado para o e-mail: ${fbUser.email}. Este e-mail não possui permissão de acesso.`,
-        );
-        return;
-      }
-
-      let role: UserRole = 'user';
-      try {
-        const adminDoc = await getDoc(doc(firestore, 'admins', fbUser.uid));
-        // Document in /admins/{uid} is the preferred admin signal; allowlist is login UX only.
-        // Until custom claims are set up, allowlisted emails still get admin for ops continuity.
-        if (adminDoc.exists() || isEmailAllowed(fbUser.email)) {
-          role = 'admin';
-        }
-      } catch {
-        if (isEmailAllowed(fbUser.email)) role = 'admin';
+      // Resolve the effective access role:
+      // 1) Bootstrap editors are always editors.
+      // 2) Otherwise look up the authorization record by e-mail.
+      // 3) No record => no access (role null).
+      let role: AccessRole | null = null;
+      if (isBootstrapEditor(fbUser.email)) {
+        role = 'editor';
+      } else if (fbUser.email) {
+        const authorization = await getAuthorization(fbUser.email);
+        role = authorization?.role ?? null;
       }
 
       setUser({
@@ -106,14 +107,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      if (result.user?.email && !isEmailAllowed(result.user.email)) {
-        await firebaseSignOut(auth);
-        setUser(null);
-        alert(
-          `Acesso não autorizado para o e-mail: ${result.user.email}. Este e-mail não possui permissão de acesso.`,
-        );
-      }
+      await signInWithPopup(auth, provider);
+      // Role resolution happens in onAuthStateChanged above.
     } catch (err) {
       console.warn('Firebase Google Login error:', err);
       throw err;
@@ -129,12 +124,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const role = user?.role ?? null;
+
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAdmin: user?.role === 'admin',
         isLoading,
+        accessDenied: Boolean(user) && role === null,
+        isEditor: role === 'editor',
+        isViewer: role === 'viewer' || role === 'editor',
+        canEdit: role === 'editor',
         loginWithGoogle,
         logout,
       }}

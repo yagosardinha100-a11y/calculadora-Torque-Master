@@ -6,6 +6,26 @@ export type Role =
   | 'Coordenador'
   | 'Outros';
 
+/**
+ * Access role controlling what a signed-in person can do in the app:
+ * - `editor`: full read + write access.
+ * - `viewer`: read-only (consulta).
+ */
+export type AccessRole = 'editor' | 'viewer';
+
+/**
+ * Authorization record keyed by e-mail. Editors manage this list to grant
+ * access without needing the person's Firebase UID beforehand.
+ */
+export interface Authorization {
+  email: string;
+  role: AccessRole;
+  name?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+}
+
 export type Status =
   | 'Escala'
   | 'Dobra'

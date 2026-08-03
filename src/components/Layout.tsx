@@ -11,6 +11,9 @@ import {
   LogOut,
   Anchor,
   Settings2,
+  UserCog,
+  Eye,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
@@ -18,7 +21,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Layout() {
   const { toggleTheme, isLight } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, isEditor } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -34,6 +37,7 @@ export default function Layout() {
     { name: 'Treinamentos', path: '/treinamentos', icon: GraduationCap },
     { name: 'Relatórios', path: '/relatorios', icon: BarChart3 },
     { name: 'Turmas', path: '/configuracoes', icon: Settings2 },
+    ...(isEditor ? [{ name: 'Usuários', path: '/usuarios', icon: UserCog }] : []),
   ];
 
   return (
@@ -91,6 +95,19 @@ export default function Layout() {
             <span className="hidden sm:inline">{isLight ? 'Escuro' : 'Claro'}</span>
           </button>
 
+          <span
+            className={cn(
+              'hidden items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold sm:inline-flex',
+              isEditor
+                ? 'bg-emerald-500/20 text-emerald-200'
+                : 'bg-amber-500/20 text-amber-200',
+            )}
+            title={isEditor ? 'Você pode editar' : 'Você está no modo somente leitura'}
+          >
+            {isEditor ? <Pencil className="size-3" /> : <Eye className="size-3" />}
+            {isEditor ? 'Editor' : 'Visualização'}
+          </span>
+
           <div className="hidden items-center gap-2 border-l border-white/15 pl-3 sm:flex">
             <div className="text-right">
               <p className="text-[12px] font-semibold text-white">{user?.name || 'Usuário'}</p>
@@ -139,6 +156,13 @@ export default function Layout() {
           );
         })}
       </div>
+
+      {!isEditor ? (
+        <div className="flex shrink-0 items-center justify-center gap-2 bg-amber-500/15 px-4 py-1.5 text-[12px] font-semibold text-amber-700 dark:text-amber-300">
+          <Eye className="size-3.5" />
+          Modo somente leitura — você pode consultar, mas não editar. Peça a um editor para alterar seu acesso.
+        </div>
+      ) : null}
 
       <main className="relative w-full flex-1 overflow-auto">
         <Outlet />

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { format } from 'date-fns';
@@ -16,6 +17,7 @@ import {
 
 export default function SettingsPage() {
   const { turmas, addTurma, deleteTurma } = useData();
+  const { canEdit } = useAuth();
   const [newTurmaName, setNewTurmaName] = useState('');
   const [newTurmaDate, setNewTurmaDate] = useState('');
   const [deleteTurmaId, setDeleteTurmaId] = useState<string | null>(null);
@@ -46,6 +48,7 @@ export default function SettingsPage() {
         subtitle="Ponto de partida do ciclo para cada turma"
       >
         <div className="p-4 sm:p-6">
+          {canEdit ? (
           <form
             onSubmit={handleAddTurma}
             className="mb-6 flex flex-col items-stretch gap-3 sm:flex-row sm:items-end sm:gap-4"
@@ -73,6 +76,7 @@ export default function SettingsPage() {
               Adicionar
             </Button>
           </form>
+          ) : null}
 
           <div className="overflow-hidden rounded-xl border border-[var(--app-border)]">
             <table className="w-full text-left text-sm">
@@ -94,14 +98,18 @@ export default function SettingsPage() {
                         {format(new Date(turma.baseDate + 'T12:00:00'), 'dd/MM/yyyy')}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-[var(--app-danger)] hover:bg-rose-500/10"
-                          onClick={() => setDeleteTurmaId(turma.id)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        {canEdit ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[var(--app-danger)] hover:bg-rose-500/10"
+                            onClick={() => setDeleteTurmaId(turma.id)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-[var(--app-text-faint)]">—</span>
+                        )}
                       </td>
                     </tr>
                   ))
